@@ -1,0 +1,128 @@
+{
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "type": "Feature",
+  "id": "item",
+  "bbox": [
+    172.9,
+    1.3,
+    173,
+    1.4
+  ],
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          172.9,
+          1.3
+        ],
+        [
+          173,
+          1.3
+        ],
+        [
+          173,
+          1.4
+        ],
+        [
+          172.9,
+          1.4
+        ],
+        [
+          172.9,
+          1.3
+        ]
+      ]
+    ]
+  },
+  "properties": {
+    "datetime": "2020-12-11T22:38:32Z"
+  },
+  "attribution": "&copy; 2022 The Example Corp.",
+  "links": [
+    {
+      "href": "https://example.com/examples/item.json",
+      "rel": "self"
+    },
+    {
+      "href": "https://maps.example.com/wmts",
+      "rel": "wmts",
+      "type": "image/png",
+      "title": "RGB composite visualized through a WMTS",
+      "wmts:layer": [
+        "streets",
+        "satellite"
+      ]
+    },
+    {
+      "href": "https://maps.example.com/wmts",
+      "rel": "wmts",
+      "type": "image/png",
+      "title": "Mosaic visualized through a WMTS (KVP)",
+      "wmts:layer": "mosaic",
+      "wmts:dimensions": {
+        "time": "2025"
+      }
+    },
+    {
+      "href": "https://maps.example.com/wmts/WMTSCapabilities.xml",
+      "rel": "wmts",
+      "type": "application/xml",
+      "title": "Mosaic visualized through a WMTS (REST)",
+      "wmts:encoding": "rest",
+      "wmts:layer": "mosaic",
+      "uriTemplate": "https://maps.example.com/wmts/rest/mosaic/2025/{style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png",
+      "variables": {
+        "style": {
+          "type": "string",
+          "enum": [
+            "rgb",
+            "grayscale"
+          ],
+          "default": "rgb"
+        }
+      }
+    },
+    {
+      "href": "https://maps.example.com/wms",
+      "rel": "wms",
+      "type": "image/png",
+      "title": "RGB composite visualized through a WMS",
+      "wms:layers": [
+        "rgb"
+      ],
+      "wms:transparent": true
+    },
+    {
+      "href": "https://maps.example.com/xyz/{z}/{x}/{y}.jpg",
+      "rel": "xyz",
+      "type": "image/jpeg",
+      "title": "RGB composite visualized through a XYZ"
+    },
+    {
+      "href": "https://maps.example.com/item/tilejson.json",
+      "rel": "tilejson",
+      "title": "TileJSON",
+      "type": "application/json"
+    },
+    {
+      "href": "https://storage.googleapis.com/open-cogs/planet-stac/cocabamba-peru/3d-geofox.ai/3DTiles/tileset.json",
+      "rel": "3d-tiles",
+      "title": "3D Tiles",
+      "type": "application/json"
+    },
+    {
+      "href": "https://maps.example.com/item/example.pmtiles",
+      "rel": "pmtiles",
+      "title": "PMTiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "streets"
+      ]
+    }
+  ],
+  "assets": {}
+}

@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "astral-sh.ty",
+        "tombi-toml.tombi",
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode"
+    ]
+}

@@ -8,7 +8,7 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
-from stac_pydantic_extensions.utils import validate_percentage
+from stac_pydantic_extensions.validators import validate_percentage
 
 PercentageOrNoneValue = Annotated[float, AfterValidator(validate_percentage)]
 
@@ -37,6 +37,8 @@ class BandCommonNames(StrEnum):
 
 
 class ElectroOpticalFields(BaseExtraFields):
+    """https://github.com/stac-extensions/eo"""
+
     cloud_cover: PercentageOrNoneValue
     snow_cover: PercentageOrNoneValue
     common_name: BandCommonNames | None = None
@@ -53,7 +55,7 @@ class ElectroOpticalExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/eo/v2.0.0/schema.json"
     )
-    prefix: Literal["ssys"] = "ssys"
+    prefix: ClassVar[Literal["eo"]] = "eo"
     fields: ElectroOpticalFields
-    version: Literal["v2.0.0"] = "v2.0.0"
-    allowed_objects: set[str] = {"Item", "Asset", "Band"}
+    version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
+    allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Band"}

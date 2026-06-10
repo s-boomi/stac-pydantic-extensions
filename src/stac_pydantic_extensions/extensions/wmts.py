@@ -111,6 +111,8 @@ class WebMapLinksTileJsonFields(BaseExtraFields):
 
 
 class WebMapLinksFields(BaseExtraFields):
+    """https://github.com/stac-extensions/web-map-links"""
+
     href_servers: list[str] | None = Field(None, alias="href:servers")
     model_config = ConfigDict(
         extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
@@ -121,8 +123,8 @@ class WebMapLinksExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
     )
-    prefix: Literal["wmts"] = "wmts"
+    prefix: ClassVar[Literal["wmts"]] = "wmts"
     fields: WebMapLinksFields
-    version: Literal["v1.3.0"] = "v1.3.0"
-    allowed_objects: set[str] = {"Item", "Catalog", "Collection"}
-    maturity_level: MaturityLevel = MaturityLevel.PROPOSAL
+    version: ClassVar[Literal["v1.3.0"]] = "v1.3.0"
+    allowed_objects: ClassVar[set[str]] = {"Item", "Catalog", "Collection"}
+    maturity_level: ClassVar[MaturityLevel] = MaturityLevel.PROPOSAL

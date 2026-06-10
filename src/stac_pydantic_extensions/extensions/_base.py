@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 from enum import IntEnum
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
-from stac_pydantic_extensions.extended import StacObject
+if TYPE_CHECKING:
+    from stac_pydantic_extensions.extended import (
+        ExtendableStacObject,
+        StacObject,
+        StacSecondaryObject,
+    )
 
 
 def prefix_alias(field_name: str, prefix: str) -> str:
@@ -27,22 +34,28 @@ class BaseExtraFields(StacBaseModel):
 
 class BaseExtension(StacBaseModel):
     stac_extension: ClassVar[AnyUrl]
-    prefix: str
+    prefix: ClassVar[str]
     fields: BaseExtraFields
-    version: str
-    allowed_objects: set[str]
-    maturity_level: MaturityLevel | None = None
+    version: ClassVar[str]
+    allowed_objects: ClassVar[set[str]]
+    maturity_level: ClassVar[MaturityLevel | None] = None
 
-    def add_schema(self, stac_object: StacObject) -> None:
-        if stac_object.stac_extensions is None:
+    def add_schema(self, stac_object: ExtendableStacObject) -> None:
+        if isinstance(stac_object, StacObject) and stac_object.stac_extensions is None:
             stac_object.stac_extensions = [self.stac_extension]
 
-        elif not self.has_extension(stac_object):
+        elif (
+            isinstance(stac_object, StacObject)
+            and stac_object.stac_extensions is not None
+            and not self.has_extension(stac_object)
+        ):
             stac_object.stac_extensions.append(self.stac_extension)
 
-    def remove_schema(self, stac_object: StacObject) -> None:
-
-        if stac_object.stac_extensions is not None:
+    def remove_schema(self, stac_object: ExtendableStacObject) -> None:
+        if (
+            isinstance(stac_object, StacObject)
+            and stac_object.stac_extensions is not None
+        ):
             stac_object.stac_extensions = [
                 uri
                 for uri in stac_object.stac_extensions
@@ -52,11 +65,19 @@ class BaseExtension(StacBaseModel):
             if len(stac_object.stac_extensions) == 0:
                 stac_object.stac_extensions = None
 
-    def has_extension(self, stac_object: StacObject) -> bool:
-        if self.stac_extension is not None:
-            return stac_object.stac_extensions is not None and any(
-                self.stac_extension == uri for uri in stac_object.stac_extensions
+    def has_extension(self, stac_object: ExtendableStacObject) -> bool:
+        if isinstance(stac_object, StacObject):
+            if self.stac_extension is not None:
+                return stac_object.stac_extensions is not None and any(
+                    self.stac_extension == uri for uri in stac_object.stac_extensions
+                )
+        elif isinstance(stac_object, StacSecondaryObject):
+            return any(
+                field.startswith(self.prefix)
+                for field in stac_object.model_fields.keys()
             )
+
+        return False
 
     def is_from_github(self) -> bool:
         return self.stac_extension.host == "stac-extensions.github.io"

@@ -31,6 +31,8 @@ class SolSysTargets(StrEnum):
 
 
 class SolSysFields(BaseExtraFields):
+    """https://github.com/stac-extensions/ssys"""
+
     targets: list[str] | None = None
     local_time: str | None = None
     target_class: SolSysTargets | None = None
@@ -44,7 +46,7 @@ class SolSysExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/ssys/v1.1.1/schema.json"
     )
-    prefix: Literal["ssys"] = "ssys"
+    prefix: ClassVar[Literal["ssys"]] = "ssys"
     fields: SolSysFields
-    version: Literal["v1.1.1"] = "v1.1.1"
-    allowed_objects: set[str] = {"Item", "Catalog", "Collection"}
+    version: ClassVar[Literal["v1.1.1"]] = "v1.1.1"
+    allowed_objects: ClassVar[set[str]] = {"Item", "Catalog", "Collection"}

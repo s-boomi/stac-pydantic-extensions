@@ -20,7 +20,7 @@ class WebMapLinks3DTilesFields(BaseExtraFields):
     rel: str = Field(..., alias="rel")
     href: str = Field(..., alias="href")
     type: str | None = None
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class WebMapLinksOgcWmsFields(BaseExtraFields):
@@ -37,7 +37,7 @@ class WebMapLinksOgcWmsFields(BaseExtraFields):
     dimensions: dict[str, str] | None = None
     transparent: bool | None = False
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
     )
 
 
@@ -51,7 +51,7 @@ class WebMapLinksOgcWmtsFields(BaseExtraFields):
     href_servers: list[str] | None = Field(None, alias="href:servers")
     wmts_layer: str | list[str] = Field(..., alias="wmts:layer")
     wmts_encoding: str | None = Field(None, alias="wmts:encoding")
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class WebMapLinksKvpFields(BaseExtraFields):
@@ -63,7 +63,7 @@ class WebMapLinksKvpFields(BaseExtraFields):
     encoding: str | None = None
     dimensions: dict[str, str] | None
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
     )
 
 
@@ -115,7 +115,7 @@ class WebMapLinksFields(BaseExtraFields):
 
     href_servers: list[str] | None = Field(None, alias="href:servers")
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="wmts")
     )
 
 

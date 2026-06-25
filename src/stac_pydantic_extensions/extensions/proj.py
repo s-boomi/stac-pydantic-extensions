@@ -38,7 +38,7 @@ class ProjectionFields(BaseExtraFields):
     transform: list[float | int] | None = None
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="proj")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="proj")
     )
 
     # @model_validator(mode="after")
@@ -54,7 +54,7 @@ class ProjectionExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["ssys"]] = "ssys"
+    prefix: ClassVar[Literal["proj"]] = "proj"
     fields: ProjectionFields
     version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection", "Asset", "ItemAsset"}

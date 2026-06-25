@@ -1,9 +1,10 @@
-from typing import Self, TypeAlias
+from __future__ import annotations
 
-from pydantic import AnyUrl, create_model, model_validator
+from typing import TYPE_CHECKING, Self, TypeAlias
+
+from pydantic import AnyUrl, ConfigDict, model_validator
 from stac_pydantic import Catalog
 from stac_pydantic.shared import Asset, StacBaseModel
-from typing_extensions import Any
 
 from stac_pydantic_extensions._registry import extension_registry
 from stac_pydantic_extensions.compat.stac_pydantic import (
@@ -13,6 +14,9 @@ from stac_pydantic_extensions.compat.stac_pydantic import (
     ItemAsset,
     Link,
 )
+
+if TYPE_CHECKING:
+    from stac_pydantic_extensions.extensions._base import BaseExtension
 
 # Main STAC objects: possess a "stac_extensions" attribute that contains
 # links to JSON schemas (optional if the extension is still in dev)
@@ -24,28 +28,54 @@ StacSecondaryObject: TypeAlias = Asset | Band | Link | ItemAsset
 ExtendableStacObject: TypeAlias = StacObject | StacSecondaryObject
 
 
-def _create_extension_container(
-    stac_object: ExtendableStacObject,
-) -> type[StacBaseModel]:
+class ExtensionContainer:
+    def _instanciate_extensions(self, stac_object: ExtendableStacObject):
+        if isinstance(stac_object, StacObject):
+            stac_extensions: list[AnyUrl] | None = stac_object.stac_extensions
+            if stac_extensions is not None:
+                return
+        if isinstance(stac_object, StacSecondaryObject):
+            return
 
-    # Ensure the dynamic fields mapping is a plain dict so it matches
-    # the expected signature overloads of pydantic.create_model
-    dynamic_fields: dict[str, Any] = dict(
-        extension_registry.allowed_extensions_by_stac_item(stac_object)
-    )
+        return
 
-    return create_model(
-        "ExtensionContainer",
-        __base__=StacBaseModel,
-        **dynamic_fields,
-    )
+    def __init__(self, stac_object: ExtendableStacObject):
+        self._fields: dict[str, type[BaseExtension]] = dict(
+            extension_registry.allowed_extensions_by_stac_item(stac_object)
+        )
+        self._instanciated: dict[str, BaseExtension] = {}
+        self._instanciate_extensions(stac_object)
+
+    @property
+    def fields(self) -> dict[str, type[BaseExtension]]:
+        return self._fields
+
+    @property
+    def field_names(self) -> set[str]:
+        return set(self.fields.keys())
+
+    def __dir__(self):
+        return sorted(self.fields)
+
+    def __getattr__(self, name: str) -> type[BaseExtension] | BaseExtension:
+        if name not in self.field_names:
+            raise AttributeError(
+                f"{name!r} is not available for this instance of {self.__class__.__name__}"
+            )
+
+        if name in self._instanciated:
+            return self._instanciated[name]
+
+        return self.fields[name]
 
 
 class ExtendedItem(StacBaseModel):
     """Facade structure of a STAC component to deal with extension-related material"""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     stac_object: ExtendableStacObject
-    ext: type[StacBaseModel] | None = None
+    ext: ExtensionContainer | None = None
 
     def get_ext_schema_uri(self) -> list[AnyUrl] | None:
         if isinstance(self.stac_object, StacObject):
@@ -54,5 +84,10 @@ class ExtendedItem(StacBaseModel):
 
     @model_validator(mode="after")
     def init_extensions(self) -> Self:
-        self.ext: type[StacBaseModel] = _create_extension_container(self.stac_object)
+        self.ext = ExtensionContainer(self.stac_object)
         return self
+
+    def show_ext_names(self) -> set[str]:
+        if self.ext is None:
+            return set()
+        return set(self.ext.field_names)

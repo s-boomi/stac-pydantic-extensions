@@ -28,18 +28,25 @@ class MaturityLevel(IntEnum):
 
 class BaseExtraFields(StacBaseModel):
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="")
     )
 
 
 class BaseExtension(StacBaseModel):
+    """Base model for extensions"""
+
     stac_extension: ClassVar[AnyUrl]
     prefix: ClassVar[str]
     fields: BaseExtraFields
     version: ClassVar[str]
     allowed_objects: ClassVar[set[str]]
+    # No maturity level is considered as WIP
     maturity_level: ClassVar[MaturityLevel | None] = None
 
+    # TODO: handle older versions
+    # If older versions are found, don't instantiate the fields on the new one
+    # Best to use a model_validator - before and restitute the fields
+    # On their STAC element of v1.1.0
     def add_schema(self, stac_object: ExtendableStacObject) -> None:
         if isinstance(stac_object, StacObject) and stac_object.stac_extensions is None:
             stac_object.stac_extensions = [self.stac_extension]
@@ -81,3 +88,15 @@ class BaseExtension(StacBaseModel):
 
     def is_from_github(self) -> bool:
         return self.stac_extension.host == "stac-extensions.github.io"
+
+    @classmethod
+    def from_stac_object(cls, stac_object: StacObject) -> BaseExtension:  # ty:ignore[invalid-return-type]
+        stac_obj_ext = stac_object.stac_extensions
+        if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
+            return cls(fields=BaseExtraFields(**stac_object.to_dict()))
+
+    @classmethod
+    def from_stac__secondary_object(
+        cls, stac_object: StacSecondaryObject
+    ) -> BaseExtension:  # ty:ignore[empty-body]
+        pass

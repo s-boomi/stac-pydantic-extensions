@@ -32,7 +32,7 @@ class RemoteDataFields(BaseExtraFields):
     flux_capacitor: bool | None = None
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="rd")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="rd")
     )
 
 

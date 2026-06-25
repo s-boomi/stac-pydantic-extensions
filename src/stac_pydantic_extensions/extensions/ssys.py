@@ -38,7 +38,7 @@ class SolSysFields(BaseExtraFields):
     target_class: SolSysTargets | None = None
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="ssys")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="ssys")
     )
 
 

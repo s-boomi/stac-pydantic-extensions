@@ -26,7 +26,7 @@ class ViewGeometryFields(BaseExtraFields):
     moon_elevation: OffNadirOrNone
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="view")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="view")
     )
 
 

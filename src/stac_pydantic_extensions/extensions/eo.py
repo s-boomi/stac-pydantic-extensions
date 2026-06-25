@@ -3,6 +3,7 @@ from typing import Annotated, ClassVar, Literal
 
 from pydantic import AfterValidator, AnyUrl, ConfigDict
 
+from stac_pydantic_extensions.extended import StacObject
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
@@ -47,7 +48,7 @@ class ElectroOpticalFields(BaseExtraFields):
     solar_illumination: float | None = None
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="eo")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="eo")
     )
 
 
@@ -59,3 +60,11 @@ class ElectroOpticalExtension(BaseExtension):
     fields: ElectroOpticalFields
     version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Band"}
+
+    @classmethod
+    def from_stac_object(cls, stac_object: StacObject) -> "ElectroOpticalExtension":  # ty:ignore[invalid-return-type]
+        stac_obj_ext = stac_object.stac_extensions
+        if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
+            return cls(
+                fields=ElectroOpticalFields.model_validate(**stac_object.to_dict())
+            )

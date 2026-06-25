@@ -36,7 +36,7 @@ class ScientificCitationFields(BaseExtraFields):
     publications: list[Publication] | None = None
 
     model_config = ConfigDict(
-        extra="forbid", alias_generator=lambda s: prefix_alias(s, prefix="sci")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="sci")
     )
 
     def doi_as_url(self) -> str | None:

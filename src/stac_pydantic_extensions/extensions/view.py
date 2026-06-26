@@ -9,21 +9,21 @@ from stac_pydantic_extensions.extensions._base import (
     prefix_alias,
 )
 
-OffNadirOrNone = Annotated[float | int, validators.validate_off_nadir]
-ElevationOrNone = Annotated[float | int, validators.validate_elevation]
-AzimuthOrNone = Annotated[float | int, validators.validate_azimuth]
+OffNadir = Annotated[float | int, validators.validate_off_nadir]
+Elevation = Annotated[float | int, validators.validate_elevation]
+Azimuth = Annotated[float | int, validators.validate_azimuth]
 
 
 class ViewGeometryFields(BaseExtraFields):
     """https://github.com/stac-extensions/view"""
 
-    off_nadir: OffNadirOrNone
-    incidence_angle: OffNadirOrNone
-    azimuth: AzimuthOrNone
-    sun_azimuth: AzimuthOrNone
-    sun_elevation: ElevationOrNone
-    moon_azimuth: AzimuthOrNone
-    moon_elevation: OffNadirOrNone
+    off_nadir: OffNadir | None = None
+    incidence_angle: OffNadir | None = None
+    azimuth: Azimuth | None = None
+    sun_azimuth: Azimuth | None = None
+    sun_elevation: Elevation | None = None
+    moon_azimuth: Azimuth | None = None
+    moon_elevation: OffNadir | None = None
 
     model_config = ConfigDict(
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="view")

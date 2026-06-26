@@ -1,9 +1,11 @@
-from typing import Annotated, ClassVar, Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
-from stac_pydantic_extensions import Collection, Item, Link
+from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item, Link
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
@@ -11,14 +13,18 @@ from stac_pydantic_extensions.extensions._base import (
 )
 from stac_pydantic_extensions.validators import validate_doi
 
+if TYPE_CHECKING:
+    from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
+
+
 DOI_URL_BASE = "https://doi.org/"
 
 
-ValidateDoiOrNone = Annotated[str, validate_doi]
+ValidateDoi = Annotated[str, validate_doi]
 
 
 class Publication(StacBaseModel):
-    doi: ValidateDoiOrNone
+    doi: ValidateDoi | None = None
     citation: str | None = None
 
     def doi_as_url(self) -> str | None:
@@ -31,7 +37,7 @@ class Publication(StacBaseModel):
 class ScientificCitationFields(BaseExtraFields):
     """https://github.com/stac-extensions/scientific"""
 
-    doi: ValidateDoiOrNone
+    doi: ValidateDoi | None = None
     citation: str | None = None
     publications: list[Publication] | None = None
 
@@ -48,7 +54,7 @@ class ScientificCitationFields(BaseExtraFields):
 
 class ScientificCitationExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
-        "https://stac-extensions.github.io/sci/v1.0.0/schema.json"
+        "https://stac-extensions.github.io/scientific/v1.0.0/schema.json"
     )
     prefix: ClassVar[Literal["sci"]] = "sci"
     fields: ScientificCitationFields
@@ -60,3 +66,25 @@ class ScientificCitationExtension(BaseExtension):
         if doi_url is not None:
             stac_item.links.append(Link(href=doi_url, rel="cite-as"))
         return stac_item
+
+    @classmethod
+    def from_stac_object(
+        cls, stac_object: StacObject
+    ) -> ScientificCitationExtension | None:
+        stac_obj_ext = stac_object.stac_extensions
+        if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
+            if isinstance(stac_object, Item):
+                properties = stac_object.properties.to_dict()
+            elif isinstance(stac_object, Collection):
+                properties = stac_object.summaries
+            else:
+                properties = stac_object.to_dict()
+            return cls(fields=ScientificCitationFields.model_validate(properties or {}))
+
+    @classmethod
+    def from_stac_secondary_object(
+        cls, stac_object: StacSecondaryObject
+    ) -> ScientificCitationExtension | None:
+        obj_properties = stac_object.to_dict()
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+            return cls(fields=ScientificCitationFields.model_validate(obj_properties))

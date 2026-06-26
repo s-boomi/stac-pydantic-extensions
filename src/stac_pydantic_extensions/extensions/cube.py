@@ -1,5 +1,6 @@
+from stac_pydantic_extensions.types import AnyVariableData
 from enum import StrEnum, auto
-from typing import ClassVar, Literal, TypeAlias
+from typing import ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import StacBaseModel
@@ -9,8 +10,6 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
-
-AnyVariableData: TypeAlias = str | float | int
 
 
 class VariableFieldType(StrEnum):

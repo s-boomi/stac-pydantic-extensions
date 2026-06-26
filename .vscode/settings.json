@@ -27,4 +27,12 @@
         "editor.tabSize": 2
     },
     "cSpell.language": "en",
+    "cSpell.languageSettings": [
+        {
+            "languageId": "python",
+            "includeRegExpList": [
+                "#.*"
+            ]
+        }
+    ]
 }

@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, ClassVar
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
+from stac_pydantic_extensions import Collection, Item
+
 if TYPE_CHECKING:
     from stac_pydantic_extensions.extended import (
         ExtendableStacObject,
@@ -90,13 +92,21 @@ class BaseExtension(StacBaseModel):
         return self.stac_extension.host == "stac-extensions.github.io"
 
     @classmethod
-    def from_stac_object(cls, stac_object: StacObject) -> BaseExtension:  # ty:ignore[invalid-return-type]
+    def from_stac_object(cls, stac_object: StacObject) -> BaseExtension | None:
         stac_obj_ext = stac_object.stac_extensions
         if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
-            return cls(fields=BaseExtraFields(**stac_object.to_dict()))
+            if isinstance(stac_object, Item):
+                properties = stac_object.properties.to_dict()
+            elif isinstance(stac_object, Collection):
+                properties = stac_object.summaries
+            else:
+                properties = stac_object.to_dict()
+            return cls(fields=BaseExtraFields.model_validate(properties or {}))
 
     @classmethod
-    def from_stac__secondary_object(
+    def from_stac_secondary_object(
         cls, stac_object: StacSecondaryObject
-    ) -> BaseExtension:  # ty:ignore[empty-body]
-        pass
+    ) -> BaseExtension | None:
+        obj_properties = stac_object.to_dict()
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+            return cls(fields=BaseExtraFields.model_validate(obj_properties))

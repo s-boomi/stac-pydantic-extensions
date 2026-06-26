@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
@@ -8,6 +8,9 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
+
+if TYPE_CHECKING:
+    pass
 
 
 class Expression(StacBaseModel):

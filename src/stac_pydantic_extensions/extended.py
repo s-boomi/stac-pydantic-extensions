@@ -1,38 +1,33 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self, TypeAlias
+from typing import TYPE_CHECKING, Self
 
 from pydantic import AnyUrl, ConfigDict, model_validator
-from stac_pydantic import Catalog
-from stac_pydantic.shared import Asset, StacBaseModel
+from stac_pydantic.shared import StacBaseModel
 
 from stac_pydantic_extensions._registry import extension_registry
-from stac_pydantic_extensions.compat.stac_pydantic import (
-    Band,
-    Collection,
-    Item,
-    ItemAsset,
-    Link,
+from stac_pydantic_extensions.types import (
+    ExtendableStacObject,
+    StacObject,
+    StacSecondaryObject,
 )
 
 if TYPE_CHECKING:
     from stac_pydantic_extensions.extensions._base import BaseExtension
-
-# Main STAC objects: possess a "stac_extensions" attribute that contains
-# links to JSON schemas (optional if the extension is still in dev)
-StacObject: TypeAlias = Catalog | Collection | Item
-# Sub-objects that are usually part of a StacObject, but can receive extensions
-# We must make sure their parent has the extension
-StacSecondaryObject: TypeAlias = Asset | Band | Link | ItemAsset
-# Possible scopes of the extension
-ExtendableStacObject: TypeAlias = StacObject | StacSecondaryObject
 
 
 class ExtensionContainer:
     def _instanciate_extensions(self, stac_object: ExtendableStacObject):
         if isinstance(stac_object, StacObject):
             stac_extensions: list[AnyUrl] | None = stac_object.stac_extensions
-            if stac_extensions is not None:
+            if stac_extensions is not None and len(stac_extensions) > 0:
+                available_extensions = self._extension_index()
+                for stac_extension in stac_extensions:
+                    ext_key = available_extensions[stac_extension]
+                    CurrentExtension = self.fields[ext_key]
+                    ext_obj = CurrentExtension.from_stac_object(stac_object)
+                    if ext_obj is not None:
+                        self._instanciated[ext_key] = ext_obj
                 return
         if isinstance(stac_object, StacSecondaryObject):
             return
@@ -67,6 +62,9 @@ class ExtensionContainer:
             return self._instanciated[name]
 
         return self.fields[name]
+
+    def _extension_index(self) -> dict[AnyUrl, str]:
+        return {ext.stac_extension: ext_name for ext_name, ext in self.fields.items()}
 
 
 class ExtendedItem(StacBaseModel):

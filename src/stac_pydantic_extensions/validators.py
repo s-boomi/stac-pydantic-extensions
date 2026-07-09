@@ -3,13 +3,33 @@ import re
 from pydantic import ValidationError
 from pyproj import CRS
 from pyproj.exceptions import CRSError
+from stac_pydantic.collection import Range
+from stac_pydantic.shared import NumType
 
 DOI_PATTERN = re.compile(r"^10\\.[0-9a-zA-Z]{4,}/[^\\s]+$")
 
 
-def validate_percentage(v: float | int | None) -> float | int | None:
-    if v is not None and (v < 0 or v > 100):
-        raise ValueError(f"{v} must be between 0 and 100")
+def validate_percentage(v: NumType | Range | None) -> NumType | Range | None:
+    """Checks if the value is a valid percentage in case of a number, or in
+    the case of a Range object, checks of the minimum and maximum are between
+    0 and 100 included.
+    """
+    if v is not None and isinstance(v, Range):
+        v_min, v_max = v.minimum, v.maximum
+        try:
+            v_min = float(v_min)
+            v_max = float(v_max)
+            if v_min < 0 or v_max > 100:
+                raise ValidationError(
+                    f"Range must be between [0,100]. Range value: {v.to_dict()}"
+                )
+        except ValueError as val_err:
+            raise ValidationError(
+                f"{v_min} or {v_max} must be numbers, not {type(v_min)} or {type(v_max)} respectively."
+            ) from val_err
+
+    if v is not None and isinstance(v, NumType) and (v < 0 or v > 100):
+        raise ValidationError(f"{v} must be between 0 and 100")
 
     return v
 

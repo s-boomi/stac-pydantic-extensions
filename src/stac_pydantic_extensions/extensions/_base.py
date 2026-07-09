@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
 from stac_pydantic_extensions import Collection, Item
+from stac_pydantic_extensions.types import (
+    StacObject,
+    StacSecondaryObject,
+)
 
 if TYPE_CHECKING:
-    from stac_pydantic_extensions.extended import (
+    from stac_pydantic_extensions.types import (
         ExtendableStacObject,
-        StacObject,
-        StacSecondaryObject,
     )
 
 
@@ -34,55 +36,123 @@ class BaseExtraFields(StacBaseModel):
     )
 
 
-class BaseExtension(StacBaseModel):
-    """Base model for extensions"""
+class OldBaseExtraFields(BaseExtraFields):
+    pass
 
+
+class _BaseExtension(StacBaseModel):
+    stac_extension: AnyUrl
+    prefix: str
+    version: str
+    allowed_objects: set[str]
+    # No maturity level is considered as WIP
+    maturity_level: MaturityLevel | None = None
+
+
+class _BaseClassExtension(StacBaseModel):
     stac_extension: ClassVar[AnyUrl]
     prefix: ClassVar[str]
-    fields: BaseExtraFields
     version: ClassVar[str]
     allowed_objects: ClassVar[set[str]]
-    # No maturity level is considered as WIP
     maturity_level: ClassVar[MaturityLevel | None] = None
 
-    # TODO: handle older versions
-    # If older versions are found, don't instantiate the fields on the new one
-    # Best to use a model_validator - before and restitute the fields
-    # On their STAC element of v1.1.0
-    def add_schema(self, stac_object: ExtendableStacObject) -> None:
-        if isinstance(stac_object, StacObject) and stac_object.stac_extensions is None:
-            stac_object.stac_extensions = [self.stac_extension]
 
-        elif (
-            isinstance(stac_object, StacObject)
-            and stac_object.stac_extensions is not None
-            and not self.has_extension(stac_object)
-        ):
-            stac_object.stac_extensions.append(self.stac_extension)
+class OldBaseExtension(_BaseExtension):
+    fields: OldBaseExtraFields | None = None
 
-    def remove_schema(self, stac_object: ExtendableStacObject) -> None:
+
+class BaseExtension(_BaseClassExtension):
+    """Base model for extensions"""
+
+    # List of previous STAC extensions
+    # Can be left empty some extensions are at their first version
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = []
+
+    fields: BaseExtraFields
+
+    @classmethod
+    def schema_uris(cls) -> list[AnyUrl]:
+        """List the schema URIs of the extension"""
+        return [cls.stac_extension] + [
+            old_ext.stac_extension for old_ext in cls.old_stac_extensions
+        ]
+
+    @classmethod
+    def add_extension(
+        cls, stac_object: ExtendableStacObject, **ext_fields
+    ) -> BaseExtension:
+        """Returns an instantiated form of the extension with fields"""
+        if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):
+            if stac_object.stac_extensions is None:
+                stac_object.stac_extensions = []
+            stac_object.stac_extensions.append(cls.stac_extension)
+            return cls(fields=BaseExtraFields(**ext_fields))
+
+        if isinstance(stac_object, StacSecondaryObject):
+            return cls(fields=BaseExtraFields(**ext_fields))
+
+        raise ValueError("This type of file isn't taken into account")
+
+    def remove_extension(
+        self, stac_object: ExtendableStacObject
+    ) -> ExtendableStacObject:
+        """Removes any variation of the extension to the object"""
         if (
             isinstance(stac_object, StacObject)
             and stac_object.stac_extensions is not None
         ):
+            ext_to_remove = set(stac_object.stac_extensions).intersection(
+                set(self.schema_uris())
+            )
             stac_object.stac_extensions = [
                 uri
                 for uri in stac_object.stac_extensions
-                if self.stac_extension != str(uri)
+                if self.stac_extension not in ext_to_remove
             ]
 
             if len(stac_object.stac_extensions) == 0:
                 stac_object.stac_extensions = None
 
-    def has_extension(self, stac_object: ExtendableStacObject) -> bool:
+        # next remove fields
+        fields_to_remove = self.fields.model_dump()
+        stac_dict = stac_object.model_dump()
+
+        if isinstance(stac_object, Item):
+            stac_dict["properties"] = {
+                k: v
+                for k, v in stac_dict["properties"].items()
+                if k not in fields_to_remove
+            }
+        elif isinstance(stac_object, Collection):
+            stac_dict["sumamries"] = {
+                k: v
+                for k, v in stac_dict["summaries"].items()
+                if k not in fields_to_remove
+            }
+        else:
+            stac_dict = {
+                k: v for k, v in stac_dict.items() if k not in fields_to_remove
+            }
+
+        return stac_object.__class__.model_validate(stac_dict)
+
+    @classmethod
+    def has_extension(cls, stac_object: ExtendableStacObject) -> bool:
+        """Checks if any variation of the schema exists"""
         if isinstance(stac_object, StacObject):
-            if self.stac_extension is not None:
-                return stac_object.stac_extensions is not None and any(
-                    self.stac_extension == uri for uri in stac_object.stac_extensions
+            if stac_object.stac_extensions is not None:
+                return (
+                    len(
+                        set(stac_object.stac_extensions).intersection(
+                            set(cls.schema_uris())
+                        )
+                    )
+                    > 0
                 )
+
         elif isinstance(stac_object, StacSecondaryObject):
             return any(
-                field.startswith(self.prefix)
+                field.startswith(cls.prefix)
                 for field in stac_object.model_fields.keys()
             )
 
@@ -93,20 +163,46 @@ class BaseExtension(StacBaseModel):
 
     @classmethod
     def from_stac_object(cls, stac_object: StacObject) -> BaseExtension | None:
-        stac_obj_ext = stac_object.stac_extensions
-        if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
-            if isinstance(stac_object, Item):
-                properties = stac_object.properties.to_dict()
-            elif isinstance(stac_object, Collection):
-                properties = stac_object.summaries
-            else:
-                properties = stac_object.to_dict()
-            return cls(fields=BaseExtraFields.model_validate(properties or {}))
+        if not cls.has_extension(stac_object=stac_object):
+            return None
+
+        if isinstance(stac_object, Item):
+            properties = stac_object.properties.to_dict()
+        elif isinstance(stac_object, Collection):
+            properties = stac_object.summaries
+        else:
+            properties = stac_object.to_dict()
+        # TODO: before that it'd be wise to sort by version used
+        # Identify the version first, then generate an object
+        return cls(fields=BaseExtraFields.model_validate(properties or {}))
 
     @classmethod
     def from_stac_secondary_object(
         cls, stac_object: StacSecondaryObject
     ) -> BaseExtension | None:
+        if not cls.has_extension(stac_object=stac_object):
+            return None
+
         obj_properties = stac_object.to_dict()
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             return cls(fields=BaseExtraFields.model_validate(obj_properties))
+
+    def migrate(self) -> BaseExtension | None:
+        return
+
+    def __getattr__(self, name: str):
+        allowed_fields = list(self.fields.__dict__.keys())
+        if name not in allowed_fields:
+            raise AttributeError(
+                f"{name} not allowed as a field. Possible fields are {allowed_fields}"
+            )
+        return getattr(self.fields, name)
+
+    def __setattr__(self, name: str, value: Any):
+        allowed_fields = list(self.fields.__dict__.keys())
+        if name not in allowed_fields:
+            raise AttributeError(
+                f"{name} not allowed as a field. Possible fields are {allowed_fields}"
+            )
+        setattr(self.fields, name, value)
+        # TODO: find a way to impact the object too

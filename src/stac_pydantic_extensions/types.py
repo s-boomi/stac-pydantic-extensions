@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from stac_pydantic import Catalog
-from stac_pydantic.shared import Asset
+from stac_pydantic.shared import NumType
 
 from stac_pydantic_extensions.compat.stac_pydantic import (
+    Asset,
     Band,
     Collection,
     Item,
@@ -27,4 +28,4 @@ ExtendableStacObject: TypeAlias = StacObject | StacSecondaryObject
 
 
 # For some fields
-AnyVariableData: TypeAlias = str | float | int
+AnyVariableData: TypeAlias = str | NumType

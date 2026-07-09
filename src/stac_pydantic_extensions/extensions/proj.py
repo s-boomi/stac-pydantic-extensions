@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from geojson_pydantic.geometries import Geometry
-from pydantic import AfterValidator, AnyUrl, ConfigDict
-from stac_pydantic.shared import BBox, StacBaseModel, validate_bbox
+from pydantic import AnyUrl, ConfigDict
+from stac_pydantic.shared import StacBaseModel
 
-from stac_pydantic_extensions import validators
 from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
@@ -14,17 +13,14 @@ from stac_pydantic_extensions.extensions._base import (
     prefix_alias,
 )
 from stac_pydantic_extensions.extensions._projjson import ProjJson
+from stac_pydantic_extensions.model_annotations import (
+    BboxValue,
+    ProjCodeValue,
+    ProjWktValue,
+)
 
 if TYPE_CHECKING:
     from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
-
-
-ProjCodeValue = Annotated[str, AfterValidator(validators.validate_proj_code)]
-ProjWktValue = Annotated[str, AfterValidator(validators.validate_proj_wkt)]
-BboxValue = Annotated[BBox | None, AfterValidator(validate_bbox)]
-ProjTransformValue = Annotated[
-    list[float | int], AfterValidator(validators.validate_proj_transform)
-]
 
 
 class Centroid(StacBaseModel):

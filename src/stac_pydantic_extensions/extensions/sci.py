@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
@@ -11,16 +11,13 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
-from stac_pydantic_extensions.validators import validate_doi
+from stac_pydantic_extensions.model_annotations import ValidateDoi
 
 if TYPE_CHECKING:
     from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
 
 
 DOI_URL_BASE = "https://doi.org/"
-
-
-ValidateDoi = Annotated[str, validate_doi]
 
 
 class Publication(StacBaseModel):

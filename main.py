@@ -16,7 +16,7 @@ def main():
     extended_stac = ExtendedItem(stac_object=stac_item)
     print(extended_stac)
     print(extended_stac.show_ext_names())
-    print(extended_stac.ext.eo.stac_extension)
+    print(extended_stac.ext.eo.cloud_cover)
 
 
 if __name__ == "__main__":

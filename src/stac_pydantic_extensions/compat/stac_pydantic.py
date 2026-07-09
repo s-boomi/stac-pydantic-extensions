@@ -1,10 +1,11 @@
 from enum import auto
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Self, Union
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, PrivateAttr, model_validator
 from stac_pydantic import Collection as OldCollection
 from stac_pydantic import Item as OldItem
 from stac_pydantic.links import Link as OldLink
+from stac_pydantic.shared import Asset as OldAsset
 from stac_pydantic.shared import StacBaseModel
 from stac_pydantic.shared import StacCommonMetadata as OldStacCommonMetadata
 from stac_pydantic.utils import AutoValueEnum
@@ -42,8 +43,8 @@ class Band(StacBaseModel):
     https://github.com/radiantearth/stac-spec/blob/v1.1.0/commons/common-metadata.md#band-object
     """
 
-    name: Optional[str]
-    description: Optional[str]
+    name: Optional[str] = None
+    description: Optional[str] = None
     # For extensions related to bands
     model_config = ConfigDict(use_enum_values=True, extra="allow")
 
@@ -110,9 +111,31 @@ class ItemProperties(StacCommonMetadata):
     model_config = ConfigDict(extra="allow")
 
 
+class Asset(OldAsset):
+    """
+    https://github.com/radiantearth/stac-spec/blob/v1.1.0/commons/assets.md#asset-object
+    """
+
+    _additional_fields: dict[str, Any] = PrivateAttr(default={})
+
+    @model_validator(mode="after")
+    def detect_additional_fields(self) -> Self:
+        extra = self.__pydantic_extra__
+        if extra is None:
+            return self
+
+        if extra.get("bands") is not None:
+            extra["bands"] = [Band.model_validate(band) for band in extra["bands"]]
+
+        self._additional_fields = extra
+
+        return self
+
+
 class Item(OldItem):
     """
     https://github.com/radiantearth/stac-spec/blob/v1.1.0/item-spec/item-spec.md
     """
 
     properties: ItemProperties
+    assets: dict[str, Asset]

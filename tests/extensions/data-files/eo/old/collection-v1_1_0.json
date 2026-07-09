@@ -1,0 +1,166 @@
+{
+  "id": "eo-collection",
+  "type": "Collection",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json"
+  ],
+  "stac_version": "1.0.0",
+  "description": "A simple Collection demonstrating EO extension fields in a Collection.",
+  "title": "Simple EO Collection",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          172.91173669923782,
+          1.3438851951615003,
+          172.95469614953714,
+          1.3690476620161975
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2020-12-11T22:38:32.125Z",
+          "2020-12-14T18:02:31.437Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "summaries": {
+    "platform": [
+      "cool_sat1",
+      "cool_sat2"
+    ],
+    "constellation": [
+      "ion"
+    ],
+    "instruments": [
+      "cool_sensor_v1",
+      "cool_sensor_v2"
+    ],
+    "eo:cloud_cover": {
+      "minimum": 0,
+      "maximum": 50
+    },
+    "eo:bands": [
+      {
+        "name": "band1",
+        "common_name": "blue",
+        "center_wavelength": 0.47,
+        "full_width_half_max": 0.07,
+        "solar_illumination": 1959.66
+      },
+      {
+        "name": "band2",
+        "common_name": "green",
+        "center_wavelength": 0.56,
+        "full_width_half_max": 0.08,
+        "solar_illumination": 1823.24
+      },
+      {
+        "name": "band3",
+        "common_name": "red",
+        "center_wavelength": 0.645,
+        "full_width_half_max": 0.09,
+        "solar_illumination": 1512.06
+      },
+      {
+        "name": "band4",
+        "common_name": "nir",
+        "center_wavelength": 0.8,
+        "full_width_half_max": 0.152,
+        "solar_illumination": 1041.63
+      }
+    ]
+  },
+  "links": [
+    {
+      "rel": "root",
+      "href": "./collection.json",
+      "type": "application/json",
+      "title": "Simple Example Collection"
+    },
+    {
+      "rel": "item",
+      "href": "./item.json",
+      "type": "application/geo+json",
+      "title": "20201211_223832_CS2"
+    }
+  ],
+  "item_assets": {
+    "analytic": {
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "4-Band Analytic",
+      "roles": [
+        "data"
+      ],
+      "eo:bands": [
+        {
+          "name": "band1",
+          "common_name": "blue",
+          "center_wavelength": 0.47,
+          "full_width_half_max": 0.7,
+          "solar_illumination": 1959.66
+        },
+        {
+          "name": "band2",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.08,
+          "solar_illumination": 1823.24
+        },
+        {
+          "name": "band3",
+          "common_name": "red",
+          "center_wavelength": 0.645,
+          "full_width_half_max": 0.9,
+          "solar_illumination": 1512.06
+        },
+        {
+          "name": "band4",
+          "common_name": "nir",
+          "center_wavelength": 0.8,
+          "full_width_half_max": 0.152,
+          "solar_illumination": 1041.63
+        }
+      ]
+    },
+    "thumbnail": {
+      "title": "Thumbnail",
+      "type": "image/png",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "visual": {
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "3-Band Visual",
+      "roles": [
+        "visual"
+      ],
+      "eo:bands": [
+        {
+          "name": "band3",
+          "common_name": "red",
+          "center_wavelength": 0.645,
+          "full_width_half_max": 0.09
+        },
+        {
+          "name": "band2",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.08
+        },
+        {
+          "name": "band1",
+          "common_name": "blue",
+          "center_wavelength": 0.47,
+          "full_width_half_max": 0.07
+        }
+      ]
+    }
+  }
+}

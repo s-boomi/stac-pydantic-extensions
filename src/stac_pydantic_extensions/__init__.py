@@ -2,6 +2,7 @@
 
 from stac_pydantic_extensions.compat.stac_pydantic import (
     STAC_VERSION,
+    Asset,
     Band,
     Collection,
     DataTypes,
@@ -13,6 +14,7 @@ from stac_pydantic_extensions.compat.stac_pydantic import (
     StacCommonMetadata,
     Statistics,
 )
+from stac_pydantic_extensions.extended import ExtendedItem
 
 __all__: list[str] = [
     "STAC_VERSION",
@@ -22,8 +24,10 @@ __all__: list[str] = [
     "Statistics",
     "StacCommonMetadata",
     "Link",
+    "Asset",
     "ItemAsset",
     "Collection",
     "ItemProperties",
     "Item",
+    "ExtendedItem",
 ]

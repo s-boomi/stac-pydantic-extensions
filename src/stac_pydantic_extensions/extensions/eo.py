@@ -1,25 +1,43 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
-from pydantic import AfterValidator, AnyUrl, ConfigDict
+from pydantic import AnyUrl, ConfigDict
 
 from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
+    MaturityLevel,
+    OldBaseExtension,
     prefix_alias,
 )
-from stac_pydantic_extensions.validators import validate_percentage
+from stac_pydantic_extensions.model_annotations import PercentageValue
+from stac_pydantic_extensions.types import (
+    StacObject,
+    StacSecondaryObject,
+)
 
 if TYPE_CHECKING:
-    from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
+    from stac_pydantic_extensions.types import (
+        ExtendableStacObject,
+    )
 
-PercentageValue = Annotated[float, AfterValidator(validate_percentage)]
+
+class EoAssetRoles(StrEnum):
+    """https://github.com/stac-extensions/eo/blob/v2.0.0/README.md#best-practices"""
+
+    REFLECTANCE = "reflectance"
+    TEMPERATURE = "temperature"
+    SATURATION = "saturation"
+    CLOUD = "cloud"
+    CLOUD_SHADOW = "cloud-shadow"
 
 
 class BandCommonNames(StrEnum):
+    """https://github.com/stac-extensions/eo/blob/v2.0.0/README.md#common-band-names"""
+
     PAN = "pan"
     COASTAL = "coastal"
     BLUE = "blue"
@@ -57,14 +75,50 @@ class ElectroOpticalFields(BaseExtraFields):
     )
 
 
+class OldElectroOpticalExtension(OldBaseExtension):
+    prefix: str = "eo"
+    maturity_level: MaturityLevel = MaturityLevel.STABLE
+
+
 class ElectroOpticalExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/eo/v2.0.0/schema.json"
     )
     prefix: ClassVar[Literal["eo"]] = "eo"
+    old_stac_extensions: ClassVar[list[OldElectroOpticalExtension]] = [
+        OldElectroOpticalExtension(
+            stac_extension=AnyUrl(
+                "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+            ),
+            version="v1.0.0",
+            allowed_objects={
+                "Item",
+                "Asset",
+                "Collection",
+            },
+        ),
+        OldElectroOpticalExtension(
+            stac_extension=AnyUrl(
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json"
+            ),
+            version="v1.1.0",
+            allowed_objects={
+                "Item",
+                "Asset",
+                "Collection",
+            },
+        ),
+        OldElectroOpticalExtension(
+            stac_extension=AnyUrl(
+                "https://stac-extensions.github.io/eo/v2.0.0-beta.1/schema.json"
+            ),
+            version="v2.0.0-beta.1",
+            allowed_objects={"Item", "Asset", "Collection", "Band"},
+        ),
+    ]
     fields: ElectroOpticalFields
     version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
-    allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Band"}
+    allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Collection", "Band"}
 
     @classmethod
     def from_stac_object(
@@ -87,3 +141,19 @@ class ElectroOpticalExtension(BaseExtension):
         obj_properties = stac_object.to_dict()
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             return cls(fields=ElectroOpticalFields.model_validate(obj_properties))
+
+    @classmethod
+    def add_extension(
+        cls, stac_object: ExtendableStacObject, **ext_fields
+    ) -> BaseExtension:
+        """Returns an instantiated form of the ElectroOpticalExtension with the corresponding fields"""
+        if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):
+            if stac_object.stac_extensions is None:
+                stac_object.stac_extensions = []
+            stac_object.stac_extensions.append(cls.stac_extension)
+            return cls(fields=ElectroOpticalFields(**ext_fields))
+
+        if isinstance(stac_object, StacSecondaryObject):
+            return cls(fields=ElectroOpticalFields(**ext_fields))
+
+        raise ValueError("This type of file isn't taken into account")

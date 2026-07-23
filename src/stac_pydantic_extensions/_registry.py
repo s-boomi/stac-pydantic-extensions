@@ -7,6 +7,7 @@ from pydantic import Field
 from stac_pydantic_extensions.extensions._base import BaseExtension
 from stac_pydantic_extensions.extensions.eo import ElectroOpticalExtension
 from stac_pydantic_extensions.extensions.proj import ProjectionExtension
+from stac_pydantic_extensions.extensions.raster import RasterExtension
 from stac_pydantic_extensions.extensions.rd import RemoteDataExtension
 from stac_pydantic_extensions.extensions.sci import ScientificCitationExtension
 from stac_pydantic_extensions.extensions.ssys import SolSysExtension
@@ -24,6 +25,7 @@ AVAILABLE_EXTENSIONS: list[Type[BaseExtension]] = [
     RemoteDataExtension,
     ScientificCitationExtension,
     ViewGeometryExtension,
+    RasterExtension,
 ]
 
 

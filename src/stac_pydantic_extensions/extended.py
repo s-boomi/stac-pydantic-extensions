@@ -7,7 +7,12 @@ from pydantic import AnyUrl, ConfigDict, model_validator
 from stac_pydantic.shared import StacBaseModel
 
 from stac_pydantic_extensions._registry import extension_registry
-from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item
+from stac_pydantic_extensions.compat.stac_pydantic import (
+    STAC_VERSION,
+    Asset,
+    Collection,
+    Item,
+)
 from stac_pydantic_extensions.extensions._base import BaseExtraFields
 from stac_pydantic_extensions.types import (
     ExtendableStacObject,
@@ -22,7 +27,9 @@ if TYPE_CHECKING:
 class ExtensionContainer:
     """An utilitary class handling scope-available extensions per object"""
 
-    def _instanciate_extensions(self, stac_object: ExtendableStacObject):
+    def _instanciate_extensions(
+        self, stac_object: ExtendableStacObject, migrate: bool = False
+    ):
         """If the STAC extendable object in question already has extensions available, this
         function will generate one instance for each, at the beginning.
         """
@@ -33,7 +40,9 @@ class ExtensionContainer:
                 for stac_extension in stac_extensions:
                     ext_key = available_extensions[stac_extension]
                     CurrentExtension = self.fields[ext_key]
-                    ext_obj = CurrentExtension.from_stac_object(stac_object)
+                    ext_obj = CurrentExtension.from_stac_object(
+                        stac_object, migrate=migrate
+                    )
                     if ext_obj is not None:
                         self._instanciated[ext_key] = ext_obj
                 return
@@ -54,12 +63,20 @@ class ExtensionContainer:
 
         return
 
-    def __init__(self, stac_object: ExtendableStacObject):
+    def __init__(self, stac_object: ExtendableStacObject, migrate: bool = False):
         self._fields: dict[str, type[BaseExtension]] = dict(
             extension_registry.allowed_extensions_by_stac_item(stac_object)
         )
         self._instanciated: dict[str, BaseExtension] = {}
-        self._instanciate_extensions(stac_object)
+        self._instanciate_extensions(stac_object, migrate=migrate)
+
+    def migrate_all(self, stac_object: ExtendableStacObject) -> ExtendableStacObject:
+        """If one of the extensions is not up to date with what's supported, migrates it to the latest
+        version"""
+
+        for ext_name in self._instanciated.keys():
+            stac_object = self._instanciated[ext_name].migrate(stac_object)
+        return stac_object
 
     @property
     def fields(self) -> dict[str, type[BaseExtension]]:
@@ -125,6 +142,44 @@ class ExtendedItem(StacBaseModel):
     stac_object: ExtendableStacObject
     ext: ExtensionContainer | None = None
 
+    def _migrate_recursively(self):
+        if isinstance(self.stac_object, Item):
+            for asset_name, asset in self.stac_object.assets.items():
+                migrated_asset = Asset.model_validate(
+                    ExtendedItem(stac_object=asset).migrate().model_dump()
+                )
+                self.stac_object.assets[asset_name] = migrated_asset
+        # if (
+        #     isinstance(self.stac_object, Asset)
+        #     and "bands" in self.stac_object._additional_fields
+        # ):
+        #     migrated_bands = [b.migrate() for b in self.stac_object.bands]
+        #     self.stac_object.bands = migrated_bands
+        # else:
+        #     pass
+
+    def migrate(self) -> Self:
+        """If called, migrate every outdated instance of extra fields up to the latest supported extension version.
+
+        The method also migrates the STAC version up to `STAC_VERSION` as a precautionary measure.
+
+        Returns:
+            Self: The current instance of ExtendedItem, with extensions up to date
+        """
+        if (
+            isinstance(self.stac_object, StacObject)
+            and self.stac_object.stac_version != STAC_VERSION
+        ):
+            self.stac_object.stac_version = STAC_VERSION
+        if self.ext is not None:
+            self.stac_object = self.ext.migrate_all(self.stac_object)
+
+        self._migrate_recursively()
+
+        # TODO: re-sort bands
+
+        return self
+
     def get_ext_schema_uri(self) -> list[AnyUrl] | None:
         if isinstance(self.stac_object, StacObject):
             return self.stac_object.stac_extensions
@@ -142,6 +197,11 @@ class ExtendedItem(StacBaseModel):
         return set(self.ext.field_names)
 
     def add_extension(self, ext_name: str, extra_fields: BaseExtraFields | None = None):
+        """Adds a specific extension to the STAC item
+
+        Extra fields are allowed
+
+        """
         if self.ext is not None:
             self.ext.add_extension(
                 ext_name,

@@ -167,3 +167,109 @@ def test_extension_on_old_item(test_files):
 
     test_item_dump = Item(**test_item).model_dump()
     assert test_item_dump
+
+    test_extended_item = ExtendedItem(stac_object=Item(**test_item))
+    assert test_extended_item is not None
+
+    assert (
+        test_extended_item.stac_object.stac_extensions is not None
+        and len(test_extended_item.stac_object.stac_extensions) == 1
+    )
+    assert (
+        str(test_extended_item.stac_object.stac_extensions[0])
+        == "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+    )
+
+    assert isinstance(test_extended_item.ext.eo, ElectroOpticalExtension)
+    assert test_extended_item.ext.eo.cloud_cover == 1.2
+    assert not hasattr(test_extended_item.ext.eo, "snow_cover")
+
+    test_migrated_item = ExtendedItem(stac_object=Item(**test_item)).migrate()
+    assert test_migrated_item is not None
+
+    assert (
+        test_migrated_item.stac_object.stac_extensions is not None
+        and len(test_migrated_item.stac_object.stac_extensions) == 1
+    )
+    assert (
+        str(test_migrated_item.stac_object.stac_extensions[0])
+        == "https://stac-extensions.github.io/eo/v2.0.0/schema.json"
+    )
+
+    assert isinstance(test_migrated_item.ext.eo, ElectroOpticalExtension)
+    assert test_migrated_item.ext.eo.cloud_cover == 1.2
+    assert test_migrated_item.ext.eo.snow_cover is None
+
+    migrated = test_migrated_item.model_dump()
+
+    properties = migrated["properties"]
+
+    assert properties["eo:cloud_cover"] == 1.2
+    assert "eo:snow_cover" not in properties
+    assert "eo:bands" not in properties
+
+    analytic = migrated["assets"]["analytic"]
+
+    assert "bands" in analytic
+
+    bands = analytic["bands"]
+
+    assert len(bands) == 4
+
+    assert bands[0]["name"] == "band1"
+    assert bands[0]["eo:common_name"] == "blue"
+    assert bands[0]["eo:center_wavelength"] == 470
+    assert bands[0]["eo:full_width_half_max"] == 70
+
+
+def test_serialization_roundtrip(test_files):
+    test_item = read_json(test_files / "item.json")
+    extended_item = ExtendedItem(stac_object=Item(**test_item))
+
+    serialized = extended_item.model_dump_json()
+    assert isinstance(serialized, str)
+
+    deserialized = ExtendedItem(stac_object=Item.model_validate_json(serialized))
+    assert deserialized.ext.eo.cloud_cover == 1.2
+    assert deserialized.ext.eo.snow_cover == 0
+
+
+def test_multiple_extensions_management(test_files):
+    test_item = read_json(test_files / "item.json")
+    extended_item = ExtendedItem(stac_object=Item(**test_item))
+
+    extended_item.add_extension("raster")
+    assert hasattr(extended_item.ext, "raster")
+
+    extended_item.remove_extension("eo")
+    assert not isinstance(extended_item.ext.eo, ElectroOpticalExtension)
+
+    assert "eo" not in extended_item.stac_object.stac_extensions
+
+
+def test_eo_and_raster_extensions_coexistence(test_files):
+    test_item = read_json(test_files / "item.json")
+    extended_item = ExtendedItem(stac_object=Item(**test_item))
+
+    extended_item.add_extension("raster")
+    extended_item.ext.raster.spatial_resolution = 5.0
+
+    assert isinstance(extended_item.ext.eo, ElectroOpticalExtension)
+    assert extended_item.ext.eo.cloud_cover == 1.2
+
+    item_dict = extended_item.model_dump()
+    assert "eo:cloud_cover" in item_dict["properties"]
+    assert "raster:spatial_resolution" in item_dict["properties"]
+
+
+def test_manual_band_creation():
+    band_data = {
+        "name": "nir",
+        "eo:common_name": BandCommonNames.NIR,
+        "eo:center_wavelength": 0.85,
+        "eo:full_width_half_max": 0.1,
+    }
+    band = Band(**band_data)
+    extended_band = ExtendedItem(stac_object=band)
+    assert extended_band.ext.eo.common_name == BandCommonNames.NIR
+    assert extended_band.ext.eo.center_wavelength == 0.85

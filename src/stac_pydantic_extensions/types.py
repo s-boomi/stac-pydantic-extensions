@@ -15,7 +15,21 @@ from stac_pydantic_extensions.compat.stac_pydantic import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from stac_pydantic_extensions.extensions._base import (
+        BaseExtraFields,
+        OldBaseExtraFields,
+    )
+    from stac_pydantic_extensions.extensions.eo import (
+        ElectroOpticalFields,
+        ElectroOpticalFields_V1_0_0,
+        ElectroOpticalFields_V1_1_0,
+    )
+    from stac_pydantic_extensions.extensions.raster import (
+        RasterFields,
+        RasterFields_V1_0_0,
+        RasterFields_V1_1_0,
+    )
+
 
 # Main STAC objects: possess a "stac_extensions" attribute that contains
 # links to JSON schemas (optional if the extension is still in dev)
@@ -29,3 +43,12 @@ ExtendableStacObject: TypeAlias = StacObject | StacSecondaryObject
 
 # For some fields
 AnyVariableData: TypeAlias = str | NumType
+
+
+# Extensions - base
+BaseExtraFieldsType: TypeAlias = "BaseExtraFields | OldBaseExtraFields"
+# Extensions - other extensions
+ElectroOpticalFieldsType: TypeAlias = (
+    "ElectroOpticalFields | ElectroOpticalFields_V1_0_0 | ElectroOpticalFields_V1_1_0"
+)
+RasterFieldsType: TypeAlias = "RasterFields | RasterFields_V1_0_0 | RasterFields_V1_1_0"

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import StrEnum, auto
 from typing import TYPE_CHECKING, ClassVar, Literal
 
-from pydantic import AnyUrl, ConfigDict
-from stac_pydantic.shared import StacBaseModel
+from pydantic import AnyUrl, ConfigDict, Field
+from stac_pydantic.shared import NumType, StacBaseModel
 
+from stac_pydantic_extensions import DataTypes, NoDataTypes, Statistics
 from stac_pydantic_extensions.compat.stac_pydantic import Asset, Band, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
@@ -14,9 +15,8 @@ from stac_pydantic_extensions.extensions._base import (
     OldBaseExtension,
     prefix_alias,
 )
-from stac_pydantic_extensions.model_annotations import PercentageValue
 from stac_pydantic_extensions.types import (
-    ElectroOpticalFieldsType,
+    RasterFieldsType,
     StacObject,
     StacSecondaryObject,
 )
@@ -27,74 +27,69 @@ if TYPE_CHECKING:
     )
 
 
-EO_BAND_FIELDS = {
-    "common_name",
-    "center_wavelength",
-    "full_width_half_max",
-    "solar_illumination",
+RASTER_BAND_FIELDS = {
+    "sampling",
+    "bits_per_sample",
+    "spatial_resolution",
+    "scale",
+    "offset",
+    "histogram",
 }
 
 
-class BandCommonNames_V1_0_0(StrEnum):
-    """https://github.com/stac-extensions/eo/blob/v2.0.0/README.md#common-band-names"""
+class Histogram(StacBaseModel):
+    """https://github.com/stac-extensions/raster#histogram-object"""
 
-    COASTAL = "coastal"
-    BLUE = "blue"
-    GREEN = "green"
-    YELLOW = "yellow"
-    RED = "red"
-    PAN = "pan"
-    REDEDGE = "rededge"
-    NIR = "nir"
-    NIR08 = "nir08"
-    NIR09 = "nir09"
-    CIRRUS = "cirrus"
-    SWIR16 = "swir16"
-    SWIR22 = "swir22"
-    LWIR = "lwir"
-    LWIR11 = "lwir11"
-    LWIR12 = "lwir12"
+    count: NumType = Field(...)
+    min: NumType = Field(...)
+    max: NumType = Field(...)
+    buckets: list[NumType] = Field(...)
 
 
-class EoBand_V1_0_0(StacBaseModel):
-    """https://github.com/stac-extensions/eo/tree/v1.0.0#band-object"""
+class RasterBand_V1_0_0(StacBaseModel):
+    """https://github.com/stac-extensions/raster/tree/v1.0.0#raster-band-object"""
 
-    name: str | None = None
-    description: str | None = None
-
-    common_name: BandCommonNames_V1_0_0 | None = None
-    center_wavelength: float | None = None
-    full_width_half_max: float | None = None
+    nodata: float | None = None
+    data_type: DataTypes | None = None
+    statistics: Statistics | None = None
+    unit: str | None = None
+    statistics: Statistics | None = None
+    # Kept in V2.0.0
+    sampling: RasterSampling | None = None
+    bits_per_sample: NumType | None = None
+    spatial_resolution: NumType | None = None
+    scale: NumType | None = None
+    offset: NumType | None = None
+    histogram: Histogram | None = None
 
     def to_new_band(self) -> Band:
-        band = EoBand_V1_1_0.model_validate(self.model_dump())
+        band = RasterBand_V1_1_0.model_validate(self.model_dump())
         return Band.model_validate(
             {
-                "eo:" + k if k in EO_BAND_FIELDS else k: v
+                "raster:" + k if k in RASTER_BAND_FIELDS else k: v
                 for k, v in band.model_dump().items()
             }
         )
 
 
-class EoBand_V1_1_0(EoBand_V1_0_0):
-    """https://github.com/stac-extensions/eo/tree/v1.1.0#band-object"""
+class RasterBand_V1_1_0(RasterBand_V1_0_0):
+    """https://github.com/stac-extensions/raster/tree/v1.1.0#raster-band-object"""
 
-    solar_illumination: float | None = None
+    nodata: float | NoDataTypes | None = None
 
     def to_new_band(self) -> Band:
         return Band.model_validate(
             {
-                "eo:" + k if k in EO_BAND_FIELDS else k: v
+                "raster:" + k if k in RASTER_BAND_FIELDS else k: v
                 for k, v in self.model_dump().items()
             }
         )
 
 
-class ElectroOpticalFields_V1_0_0(BaseExtraFields):
-    """https://github.com/stac-extensions/eo/tree/v1.0.0"""
+class RasterFields_V1_0_0(BaseExtraFields):
+    """https://github.com/stac-extensions/raster/tree/v1.0.0"""
 
-    cloud_cover: PercentageValue | None = None
-    bands: list[EoBand_V1_0_0] | None = None
+    bands: list[RasterBand_V1_0_0] | None = None
 
     model_config = ConfigDict(
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="eo")
@@ -102,16 +97,16 @@ class ElectroOpticalFields_V1_0_0(BaseExtraFields):
 
     @staticmethod
     def _convert_eo_bands(
-        bands: list[EoBand_V1_1_0],
+        bands: list[RasterBand_V1_1_0],
     ) -> list[Band]:
         return [b.to_new_band() for b in bands]
 
     def _migrate_to_1_1_0(
         self, stac_object: ExtendableStacObject
-    ) -> ElectroOpticalFields_V1_1_0:
+    ) -> RasterFields_V1_1_0:
         """https://github.com/stac-extensions/eo/blob/main/CHANGELOG.md#v110---2023-02-10"""
         obj = self.model_dump()
-        return ElectroOpticalFields_V1_1_0.model_validate(obj)
+        return RasterFields_V1_1_0.model_validate(obj)
 
     def _add_bands_to_obj(
         self, stac_object: ExtendableStacObject
@@ -142,107 +137,58 @@ class ElectroOpticalFields_V1_0_0(BaseExtraFields):
     def _migrate_to_2_0_0(
         self,
         stac_object: ExtendableStacObject,
-    ) -> ElectroOpticalFields:
+    ) -> RasterFields:
         """Applies to 2.0.0 and 2.0.0-beta.1
         https://github.com/stac-extensions/eo/blob/main/CHANGELOG.md#v200---2024-09-09
         """
 
         obj = self._migrate_to_1_1_0(stac_object).model_dump()
-
-        # # Transfer band properties to common metadata
-        # if isinstance(stac_object, Item) and "eo:bands" in obj:
-        #     item_properties = stac_object.properties.model_dump()
-        #     item_properties.setdefault("bands", []).extend(
-        #         self._convert_eo_bands(obj["eo:bands"])
-        #     )
-        #     stac_object.properties = ItemProperties.model_validate(item_properties)
-        #     del obj["eo:bands"]
-        # elif isinstance(stac_object, Asset) and "eo:bands" in obj:
-        #     asset_fields = stac_object.model_dump()
-        #     asset_fields.setdefault("bands", []).extend(
-        #         self._convert_eo_bands(obj["eo:bands"])
-        #     )
-        #     stac_object = Asset.model_validate(asset_fields)
-        #     del obj["eo:bands"]
-
-        return ElectroOpticalFields.model_validate(obj)
+        return RasterFields.model_validate(obj)
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str
-    ) -> ElectroOpticalFieldsType:
+    ) -> RasterFieldsType:
         if version == "1.1.0":
             return self._migrate_to_1_1_0(stac_object)
         return self._migrate_to_2_0_0(stac_object=stac_object)
 
 
-class ElectroOpticalFields_V1_1_0(ElectroOpticalFields_V1_0_0):
+class RasterFields_V1_1_0(RasterFields_V1_0_0):
     """https://github.com/stac-extensions/eo/tree/v1.1.0"""
-
-    snow_cover: PercentageValue | None = None
 
     def _migrate_to_1_1_0(
         self, stac_object: ExtendableStacObject
-    ) -> ElectroOpticalFields_V1_1_0:
+    ) -> RasterFields_V1_1_0:
         return self
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str
-    ) -> ElectroOpticalFieldsType:
+    ) -> RasterFieldsType:
         return self._migrate_to_2_0_0(stac_object=stac_object)
 
 
-class EoAssetRoles(StrEnum):
-    """https://github.com/stac-extensions/eo/blob/v2.0.0/README.md#best-practices"""
-
-    REFLECTANCE = "reflectance"
-    TEMPERATURE = "temperature"
-    SATURATION = "saturation"
-    CLOUD = "cloud"
-    CLOUD_SHADOW = "cloud-shadow"
+class RasterSampling(StrEnum):
+    AREA = auto()
+    POINT = auto()
 
 
-class BandCommonNames(StrEnum):
-    """https://github.com/stac-extensions/eo/blob/v2.0.0/README.md#common-band-names"""
+class RasterFields(BaseExtraFields):
+    """https://github.com/stac-extensions/raster"""
 
-    PAN = "pan"
-    COASTAL = "coastal"
-    BLUE = "blue"
-    GREEN = "green"
-    GREEN05 = "green05"
-    YELLOW = "yellow"
-    RED = "red"
-    REDEDGE = "rededge"
-    REDEDGE071 = "rededge071"
-    REDEDGE075 = "rededge075"
-    REDEDGE078 = "rededge078"
-    NIR = "nir"
-    NIR08 = "nir08"
-    NIR09 = "nir09"
-    CIRRUS = "cirrus"
-    SWIR16 = "swir16"
-    SWIR22 = "swir22"
-    LWIR = "lwir"
-    LWIR11 = "lwir11"
-    LWIR12 = "lwir12"
-
-
-class ElectroOpticalFields(BaseExtraFields):
-    """https://github.com/stac-extensions/eo"""
-
-    cloud_cover: PercentageValue | None = None
-    snow_cover: PercentageValue | None = None
-    common_name: BandCommonNames | None = None
-    center_wavelength: float | None = None
-    full_width_half_max: float | None = None
-    solar_illumination: float | None = None
+    sampling: RasterSampling | None = None
+    bits_per_sample: NumType | None = None
+    spatial_resolution: NumType | None = None
+    scale: NumType | None = None
+    offset: NumType | None = None
+    histogram: Histogram | None = None
 
     model_config = ConfigDict(
-        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="eo")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="raster")
     )
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str
-    ) -> ElectroOpticalFieldsType:
+    ) -> RasterFieldsType:
         return self
 
     def _add_bands_to_obj(
@@ -251,28 +197,28 @@ class ElectroOpticalFields(BaseExtraFields):
         return stac_object
 
 
-class OldElectroOpticalExtension(OldBaseExtension):
+class OldRasterExtension(OldBaseExtension):
     prefix: str = "eo"
     maturity_level: MaturityLevel = MaturityLevel.STABLE
 
 
 FIELD_MODELS = {
-    "v1.0.0": ElectroOpticalFields_V1_0_0,
-    "v1.1.0": ElectroOpticalFields_V1_1_0,
-    "v2.0.0-beta.1": ElectroOpticalFields,
-    "v2.0.0": ElectroOpticalFields,
+    "v1.0.0": RasterFields_V1_0_0,
+    "v1.1.0": RasterFields_V1_1_0,
+    "v2.0.0-beta.1": RasterFields,
+    "v2.0.0": RasterFields,
 }
 
 
-class ElectroOpticalExtension(BaseExtension):
+class RasterExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
-        "https://stac-extensions.github.io/eo/v2.0.0/schema.json"
+        "https://stac-extensions.github.io/raster/v2.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["eo"]] = "eo"
-    old_stac_extensions: ClassVar[list[OldElectroOpticalExtension]] = [
-        OldElectroOpticalExtension(
+    prefix: ClassVar[Literal["raster"]] = "raster"
+    old_stac_extensions: ClassVar[list[OldRasterExtension]] = [
+        OldRasterExtension(
             stac_extension=AnyUrl(
-                "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+                "https://stac-extensions.github.io/raster/v1.0.0/schema.json"
             ),
             version="v1.0.0",
             allowed_objects={
@@ -281,9 +227,9 @@ class ElectroOpticalExtension(BaseExtension):
                 "Collection",
             },
         ),
-        OldElectroOpticalExtension(
+        OldRasterExtension(
             stac_extension=AnyUrl(
-                "https://stac-extensions.github.io/eo/v1.1.0/schema.json"
+                "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
             ),
             version="v1.1.0",
             allowed_objects={
@@ -292,22 +238,22 @@ class ElectroOpticalExtension(BaseExtension):
                 "Collection",
             },
         ),
-        OldElectroOpticalExtension(
+        OldRasterExtension(
             stac_extension=AnyUrl(
-                "https://stac-extensions.github.io/eo/v2.0.0-beta.1/schema.json"
+                "https://stac-extensions.github.io/raster/v2.0.0-beta.1/schema.json"
             ),
             version="v2.0.0-beta.1",
             allowed_objects={"Item", "Asset", "Collection", "Band"},
         ),
     ]
-    fields: ElectroOpticalFieldsType
+    fields: RasterFieldsType
     version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Collection", "Band"}
 
     @classmethod
     def from_stac_object(
         cls, stac_object: StacObject, migrate: bool = False
-    ) -> ElectroOpticalExtension | None:
+    ) -> RasterExtension | None:
         if not cls.has_extension(stac_object=stac_object):
             return None
 
@@ -348,32 +294,30 @@ class ElectroOpticalExtension(BaseExtension):
     @classmethod
     def from_stac_secondary_object(
         cls, stac_object: StacSecondaryObject
-    ) -> ElectroOpticalExtension | None:
+    ) -> RasterExtension | None:
         obj_properties = stac_object.to_dict()
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             if (
                 stac_object.__class__.__name__.lower() == "asset"
                 and "eo:bands" in obj_properties
             ):
-                return cls(
-                    fields=ElectroOpticalFields_V1_0_0.model_validate(obj_properties)
-                )
+                return cls(fields=RasterFields_V1_0_0.model_validate(obj_properties))
 
-            return cls(fields=ElectroOpticalFields.model_validate(obj_properties))
+            return cls(fields=RasterFields.model_validate(obj_properties))
 
     @classmethod
     def add_extension(
         cls, stac_object: ExtendableStacObject, **ext_fields
     ) -> BaseExtension:
-        """Returns an instantiated form of the ElectroOpticalExtension with the corresponding fields"""
+        """Returns an instantiated form of the RasterExtension with the corresponding fields"""
         if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):
             if stac_object.stac_extensions is None:
                 stac_object.stac_extensions = []
             stac_object.stac_extensions.append(cls.stac_extension)
-            return cls(fields=ElectroOpticalFields(**ext_fields))
+            return cls(fields=RasterFields(**ext_fields))
 
         if isinstance(stac_object, StacSecondaryObject):
-            return cls(fields=ElectroOpticalFields(**ext_fields))
+            return cls(fields=RasterFields(**ext_fields))
 
         raise ValueError("This type of file isn't taken into account")
 

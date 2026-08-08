@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import NumType, StacBaseModel
@@ -53,7 +53,6 @@ class RasterBand_V1_0_0(StacBaseModel):
     data_type: DataTypes | None = None
     statistics: Statistics | None = None
     unit: str | None = None
-    statistics: Statistics | None = None
     # Kept in V2.0.0
     sampling: RasterSampling | None = None
     bits_per_sample: NumType | None = None
@@ -70,6 +69,9 @@ class RasterBand_V1_0_0(StacBaseModel):
                 for k, v in band.model_dump().items()
             }
         )
+
+    def extract_common_properties(self) -> dict[str, Any]:
+        return self.model_dump(include={"nodata", "data_type", "statistics", "unit"})
 
 
 class RasterBand_V1_1_0(RasterBand_V1_0_0):
@@ -92,11 +94,11 @@ class RasterFields_V1_0_0(BaseExtraFields):
     bands: list[RasterBand_V1_0_0] | None = None
 
     model_config = ConfigDict(
-        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="eo")
+        extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="raster")
     )
 
     @staticmethod
-    def _convert_eo_bands(
+    def _convert_raster_bands(
         bands: list[RasterBand_V1_1_0],
     ) -> list[Band]:
         return [b.to_new_band() for b in bands]
@@ -129,7 +131,7 @@ class RasterFields_V1_0_0(BaseExtraFields):
                     )
                 else:
                     asset_obj["bands"] = [b.to_new_band().model_dump() for b in bands]
-                del asset_obj["eo:bands"]
+                del asset_obj["raster:bands"]
                 stac_object = Asset.model_validate(asset_obj)
 
         return stac_object
@@ -198,7 +200,7 @@ class RasterFields(BaseExtraFields):
 
 
 class OldRasterExtension(OldBaseExtension):
-    prefix: str = "eo"
+    prefix: str = "raster"
     maturity_level: MaturityLevel = MaturityLevel.STABLE
 
 
@@ -299,7 +301,7 @@ class RasterExtension(BaseExtension):
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             if (
                 stac_object.__class__.__name__.lower() == "asset"
-                and "eo:bands" in obj_properties
+                and "raster:bands" in obj_properties
             ):
                 return cls(fields=RasterFields_V1_0_0.model_validate(obj_properties))
 

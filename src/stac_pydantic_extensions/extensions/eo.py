@@ -149,22 +149,6 @@ class ElectroOpticalFields_V1_0_0(BaseExtraFields):
 
         obj = self._migrate_to_1_1_0(stac_object).model_dump()
 
-        # # Transfer band properties to common metadata
-        # if isinstance(stac_object, Item) and "eo:bands" in obj:
-        #     item_properties = stac_object.properties.model_dump()
-        #     item_properties.setdefault("bands", []).extend(
-        #         self._convert_eo_bands(obj["eo:bands"])
-        #     )
-        #     stac_object.properties = ItemProperties.model_validate(item_properties)
-        #     del obj["eo:bands"]
-        # elif isinstance(stac_object, Asset) and "eo:bands" in obj:
-        #     asset_fields = stac_object.model_dump()
-        #     asset_fields.setdefault("bands", []).extend(
-        #         self._convert_eo_bands(obj["eo:bands"])
-        #     )
-        #     stac_object = Asset.model_validate(asset_fields)
-        #     del obj["eo:bands"]
-
         return ElectroOpticalFields.model_validate(obj)
 
     def migrate(

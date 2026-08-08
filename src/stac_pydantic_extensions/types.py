@@ -24,10 +24,32 @@ if TYPE_CHECKING:
         ElectroOpticalFields_V1_0_0,
         ElectroOpticalFields_V1_1_0,
     )
+    from stac_pydantic_extensions.extensions.processing import (
+        ProcessingFields,
+        ProcessingFields_V1_0_0,
+        ProcessingFields_V1_1_0,
+    )
+    from stac_pydantic_extensions.extensions.proj import (
+        ProjectionFields,
+        ProjectionFields_V1_0_0,
+        ProjectionFields_V1_1_0,
+        ProjectionFields_V1_2_0,
+    )
     from stac_pydantic_extensions.extensions.raster import (
         RasterFields,
         RasterFields_V1_0_0,
         RasterFields_V1_1_0,
+    )
+    from stac_pydantic_extensions.extensions.sat import (
+        SatelliteFields,
+        SatelliteFields_V1_0_0,
+        SatelliteFields_V1_1_0,
+        SatelliteFields_V1_2_0,
+    )
+    from stac_pydantic_extensions.extensions.view import (
+        ViewGeometryFields,
+        ViewGeometryFields_V1_0_0,
+        ViewGeometryFields_V1_1_0,
     )
 
 
@@ -52,3 +74,11 @@ ElectroOpticalFieldsType: TypeAlias = (
     "ElectroOpticalFields | ElectroOpticalFields_V1_0_0 | ElectroOpticalFields_V1_1_0"
 )
 RasterFieldsType: TypeAlias = "RasterFields | RasterFields_V1_0_0 | RasterFields_V1_1_0"
+SatelliteFieldsType: TypeAlias = "SatelliteFields | SatelliteFields_V1_0_0 | SatelliteFields_V1_1_0 | SatelliteFields_V1_2_0"
+ViewGeometryFieldsType: TypeAlias = (
+    "ViewGeometryFields | ViewGeometryFields_V1_0_0 | ViewGeometryFields_V1_1_0"
+)
+ProjectionFieldsType: TypeAlias = "ProjectionFields | ProjectionFields_V1_0_0 | ProjectionFields_V1_1_0 | ProjectionFields_V1_2_0"
+ProcessingFieldsType: TypeAlias = (
+    "ProcessingFields | ProcessingFields_V1_0_0 | ProcessingFields_V1_1_0"
+)

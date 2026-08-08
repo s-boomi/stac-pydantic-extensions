@@ -80,4 +80,13 @@ def test_band_migration_to_2_0(simple_item: Item):
 
     migrated_obj = migrated_ext_item.model_dump()
 
-    assert migrated_obj["assets"]["example"]["raster:sampling"] == 10
+    example_asset = migrated_obj["assets"]["example"]
+    assert example_asset["raster:spatial_resolution"] == 10
+    assert example_asset["raster:sampling"] == "area"
+    assert example_asset["data_type"] == "uint16"
+    assert (
+        example_asset["bands"][3]["raster:spatial_resolution"] == 30
+    )  # nir override survives
+    assert (
+        "raster:spatial_resolution" not in example_asset["bands"][0]
+    )  # r had it hoisted away

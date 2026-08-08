@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections import Counter
 from typing import TYPE_CHECKING, Any, Self
 from warnings import warn
 
@@ -22,6 +24,58 @@ from stac_pydantic_extensions.types import (
 
 if TYPE_CHECKING:
     from stac_pydantic_extensions.extensions._base import BaseExtension
+
+
+BAND_PROMOTABLE_FIELDS = {
+    # eo
+    "eo:common_name",
+    "eo:center_wavelength",
+    "eo:full_width_half_max",
+    "eo:solar_illumination",
+    # raster
+    "raster:sampling",
+    "raster:bits_per_sample",
+    "raster:spatial_resolution",
+    "raster:scale",
+    "raster:offset",
+    "raster:histogram",
+    # common metadata
+    "nodata",
+    "data_type",
+    "statistics",
+    "unit",
+}
+
+
+def _hoist_common_band_fields(asset_dict: dict) -> dict:
+    bands = asset_dict.get("bands")
+    if not bands:
+        return asset_dict
+
+    n = len(bands)
+    counters = {
+        key: Counter(
+            json.dumps(band[key], sort_keys=True) for band in bands if key in band
+        )
+        for key in BAND_PROMOTABLE_FIELDS
+    }
+
+    for key, counter in counters.items():
+        if counter.total() != n:
+            continue  # not on every band — leave alone
+        dom_value_json, dom_count = counter.most_common(1)[0]
+        if dom_count == 1 and n > 1:
+            continue  # all bands disagree — nothing to hoist
+
+        asset_dict[key] = json.loads(dom_value_json)
+        for band in bands:
+            if key in band and json.dumps(band[key], sort_keys=True) == dom_value_json:
+                del band[key]
+
+    if all(len(b) == 0 for b in bands):
+        del asset_dict["bands"]
+
+    return asset_dict
 
 
 class ExtensionContainer:
@@ -145,10 +199,11 @@ class ExtendedItem(StacBaseModel):
     def _migrate_recursively(self):
         if isinstance(self.stac_object, Item):
             for asset_name, asset in self.stac_object.assets.items():
-                migrated_asset = Asset.model_validate(
-                    ExtendedItem(stac_object=asset).migrate().model_dump()
+                migrated_dict = ExtendedItem(stac_object=asset).migrate().model_dump()
+                migrated_dict = _hoist_common_band_fields(migrated_dict)
+                self.stac_object.assets[asset_name] = Asset.model_validate(
+                    migrated_dict
                 )
-                self.stac_object.assets[asset_name] = migrated_asset
         # if (
         #     isinstance(self.stac_object, Asset)
         #     and "bands" in self.stac_object._additional_fields

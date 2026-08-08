@@ -115,6 +115,7 @@ class RasterFields_V1_0_0(BaseExtraFields):
     ) -> ExtendableStacObject:
         if self.bands is not None:
             bands = self.bands
+            new_bands = [b.to_new_band().model_dump() for b in bands]
 
             if isinstance(stac_object, Item):
                 if stac_object.properties.bands is None:
@@ -125,12 +126,20 @@ class RasterFields_V1_0_0(BaseExtraFields):
                     )
             elif isinstance(stac_object, Asset):
                 asset_obj = stac_object.model_dump()
-                if "bands" in asset_obj:
-                    asset_obj["bands"].extend(
-                        [b.to_new_band().model_dump() for b in bands]
-                    )
+                existing_bands = asset_obj.get("bands")
+                if existing_bands:
+                    merged = []
+                    for i, new_band in enumerate(new_bands):
+                        base = existing_bands[i] if i < len(existing_bands) else {}
+                        merged.append(
+                            {
+                                **base,
+                                **{k: v for k, v in new_band.items() if v is not None},
+                            }
+                        )
+                    asset_obj["bands"] = merged
                 else:
-                    asset_obj["bands"] = [b.to_new_band().model_dump() for b in bands]
+                    asset_obj["bands"] = new_bands
                 del asset_obj["raster:bands"]
                 stac_object = Asset.model_validate(asset_obj)
 

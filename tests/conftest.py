@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.compat.stac_pydantic import Item
 
 TEST_PATH = Path(__file__).parent
@@ -34,3 +35,19 @@ def core_item(extension_data_files: Path) -> Item:
     _core_item = read_json(extension_data_files / "core-item.json")
 
     return Item.model_validate(_core_item)
+
+
+@pytest.fixture
+def extended_item(extension_data_files: Path) -> Item:
+    """An Item example with extensions"""
+    _core_item = read_json(extension_data_files / "common" / "item.json")
+
+    return Item.model_validate(_core_item)
+
+
+@pytest.fixture
+def extended_collection(extension_data_files: Path) -> Collection:
+    """A Collection example with extensions"""
+    _core_collection = read_json(extension_data_files / "common" / "collection.json")
+
+    return Collection.model_validate(_core_collection)

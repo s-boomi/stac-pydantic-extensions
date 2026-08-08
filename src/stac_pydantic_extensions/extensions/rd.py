@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field
 
-from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
@@ -42,6 +41,9 @@ class RemoteDataFields(BaseExtraFields):
     )
 
 
+FIELD_MODELS = {"v1.0.0": RemoteDataFields}
+
+
 class RemoteDataExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/remote-data/v1.0.0/schema.json"
@@ -52,16 +54,45 @@ class RemoteDataExtension(BaseExtension):
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
 
     @classmethod
-    def from_stac_object(cls, stac_object: StacObject) -> RemoteDataExtension | None:
-        stac_obj_ext = stac_object.stac_extensions
-        if stac_obj_ext is not None and cls.stac_extension in stac_obj_ext:
-            if isinstance(stac_object, Item):
-                properties = stac_object.properties.to_dict()
-            elif isinstance(stac_object, Collection):
-                properties = stac_object.summaries
-            else:
-                properties = stac_object.to_dict()
-            return cls(fields=RemoteDataFields.model_validate(properties or {}))
+    def from_stac_object(
+        cls, stac_object: StacObject, migrate: bool = False
+    ) -> RemoteDataExtension | None:
+        if not cls.has_extension(stac_object=stac_object):
+            return None
+
+        properties = cls._extract_properties(stac_object=stac_object)
+
+        # Find the version
+        stac_ext_version = (
+            cls.version
+            if cls.stac_extension in stac_object.stac_extensions
+            else [
+                stac_ext_info.version
+                for stac_ext_info in cls.old_stac_extensions
+                if stac_ext_info.stac_extension in stac_object.stac_extensions
+            ][0]
+        )
+
+        model = FIELD_MODELS[stac_ext_version]
+        fields = model.model_validate(properties or {})
+
+        if migrate and stac_ext_version != cls.version:
+            # First remove old schema and replace by current
+            stac_object.stac_extensions = [
+                stac_extension
+                for stac_extension in stac_object.stac_extensions or []
+                if stac_extension not in cls.schema_uris()
+            ]
+            stac_object.stac_extensions.append(cls.stac_extension)
+            fields = fields.migrate(
+                stac_object,
+                cls.version,
+            )
+
+        return cls(
+            fields=fields,
+            _loaded_version=None if migrate else stac_ext_version,
+        )
 
     @classmethod
     def from_stac_secondary_object(

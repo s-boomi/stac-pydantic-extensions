@@ -1,5 +1,7 @@
 """Webmap links extension"""
 
+from __future__ import annotations
+
 from typing import Any, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field
@@ -10,6 +12,7 @@ from stac_pydantic_extensions.extensions._base import (
     MaturityLevel,
     prefix_alias,
 )
+from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
 
 
 class WebMapLinks3DTilesFields(BaseExtraFields):
@@ -119,6 +122,9 @@ class WebMapLinksFields(BaseExtraFields):
     )
 
 
+FIELD_MODELS = {"v1.3.0": WebMapLinksFields}
+
+
 class WebMapLinksExtension(BaseExtension):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
@@ -128,3 +134,52 @@ class WebMapLinksExtension(BaseExtension):
     version: ClassVar[Literal["v1.3.0"]] = "v1.3.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Catalog", "Collection"}
     maturity_level: ClassVar[MaturityLevel] = MaturityLevel.PROPOSAL
+
+    @classmethod
+    def from_stac_object(
+        cls, stac_object: StacObject, migrate: bool = False
+    ) -> WebMapLinksExtension | None:
+        if not cls.has_extension(stac_object=stac_object):
+            return None
+
+        properties = cls._extract_properties(stac_object=stac_object)
+
+        # Find the version
+        stac_ext_version = (
+            cls.version
+            if cls.stac_extension in stac_object.stac_extensions
+            else [
+                stac_ext_info.version
+                for stac_ext_info in cls.old_stac_extensions
+                if stac_ext_info.stac_extension in stac_object.stac_extensions
+            ][0]
+        )
+
+        model = FIELD_MODELS[stac_ext_version]
+        fields = model.model_validate(properties or {})
+
+        if migrate and stac_ext_version != cls.version:
+            # First remove old schema and replace by current
+            stac_object.stac_extensions = [
+                stac_extension
+                for stac_extension in stac_object.stac_extensions or []
+                if stac_extension not in cls.schema_uris()
+            ]
+            stac_object.stac_extensions.append(cls.stac_extension)
+            fields = fields.migrate(
+                stac_object,
+                cls.version,
+            )
+
+        return cls(
+            fields=fields,
+            _loaded_version=None if migrate else stac_ext_version,
+        )
+
+    @classmethod
+    def from_stac_secondary_object(
+        cls, stac_object: StacSecondaryObject
+    ) -> WebMapLinksExtension | None:
+        obj_properties = stac_object.to_dict()
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+            return cls(fields=WebMapLinksFields.model_validate(obj_properties))

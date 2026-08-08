@@ -41,7 +41,7 @@ class ViewGeometryFields_V1_0_0(BaseExtraFields):
         raise ValueError("Couldn't recognize `sat` version!")
 
 
-class ViewGeometryFields_V1_1_0(BaseExtraFields):
+class ViewGeometryFields_V1_1_0(ViewGeometryFields_V1_0_0):
     """https://github.com/stac-extensions/view/tree/v1.1.0"""
 
     moon_azimuth: Azimuth | None = None

@@ -162,9 +162,9 @@ class BaseExtension(_BaseClassExtension):
                 if k not in fields_to_remove
             }
         elif isinstance(stac_object, Collection):
-            stac_dict["sumamries"] = {
+            stac_dict["summaries"] = {
                 k: v
-                for k, v in stac_dict["summaries"].items()
+                for k, v in (stac_dict.get("summaries") or {}).items()
                 if k not in fields_to_remove
             }
         else:

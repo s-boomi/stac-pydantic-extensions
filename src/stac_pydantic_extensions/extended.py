@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Self
 from warnings import warn
 
 from pydantic import AnyUrl, ConfigDict, model_validator
+from stac_pydantic.collection import Range
 from stac_pydantic.shared import StacBaseModel
 
 from stac_pydantic_extensions._registry import extension_registry
@@ -14,6 +15,7 @@ from stac_pydantic_extensions.compat.stac_pydantic import (
     Asset,
     Collection,
     Item,
+    ItemAsset,
 )
 from stac_pydantic_extensions.extensions._base import BaseExtraFields
 from stac_pydantic_extensions.types import (
@@ -204,14 +206,14 @@ class ExtendedItem(StacBaseModel):
                 self.stac_object.assets[asset_name] = Asset.model_validate(
                     migrated_dict
                 )
-        # if (
-        #     isinstance(self.stac_object, Asset)
-        #     and "bands" in self.stac_object._additional_fields
-        # ):
-        #     migrated_bands = [b.migrate() for b in self.stac_object.bands]
-        #     self.stac_object.bands = migrated_bands
-        # else:
-        #     pass
+        elif isinstance(self.stac_object, Collection) and self.stac_object.item_assets:
+            for name, item_asset in self.stac_object.item_assets.items():
+                migrated_dict = (
+                    ExtendedItem(stac_object=item_asset).migrate().model_dump()
+                )
+                self.stac_object.item_assets[name] = ItemAsset.model_validate(
+                    migrated_dict
+                )
 
     def migrate(self) -> Self:
         """If called, migrate every outdated instance of extra fields up to the latest supported extension version.
@@ -341,12 +343,22 @@ class ExtendedItem(StacBaseModel):
         for ext_name in self.ext.declared:
             if isinstance(self.stac_object, Item):
                 obj_as_dict["properties"].update(
-                    getattr(self.ext, ext_name).fields.model_dump()
+                    getattr(self.ext, ext_name).fields.model_dump(mode="json")
                 )
             elif isinstance(self.stac_object, Collection):
-                obj_as_dict["summaries"].update(
-                    getattr(self.ext, ext_name).fields.model_dump()
+                if obj_as_dict.get("summaries") is None:
+                    obj_as_dict["summaries"] = {}
+                ext_dump = getattr(self.ext, ext_name).fields.model_dump(
+                    mode="json", exclude_none=True
                 )
+                for key, value in ext_dump.items():
+                    if isinstance(value, dict) or isinstance(value, list):
+                        obj_as_dict["summaries"][key] = value
+                    else:
+                        obj_as_dict["summaries"][key] = Range(
+                            minimum=value, maximum=value
+                        ).model_dump()
+                obj_as_dict["summaries"].update(obj_as_dict["summaries"])
             else:
                 obj_as_dict.update(getattr(self.ext, ext_name).fields.model_dump())
 

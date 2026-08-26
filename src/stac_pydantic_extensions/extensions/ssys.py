@@ -10,7 +10,11 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
-from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
+from stac_pydantic_extensions.types import (
+    ExtendableStacObject,
+    StacObject,
+    StacSecondaryObject,
+)
 
 
 class SolSysTargets(StrEnum):
@@ -44,6 +48,9 @@ class SolSysFields(BaseExtraFields):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="ssys")
     )
 
+    def migrate(self, stac_object: ExtendableStacObject, version: str) -> SolSysFields:
+        return self
+
 
 FIELD_MODELS = {"v1.1.1": SolSysFields}
 
@@ -67,13 +74,14 @@ class SolSysExtension(BaseExtension):
         properties = cls._extract_properties(stac_object=stac_object)
 
         # Find the version
+        stac_extensions = stac_object.stac_extensions or []
         stac_ext_version = (
             cls.version
-            if cls.stac_extension in stac_object.stac_extensions
+            if cls.stac_extension in stac_extensions
             else [
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
-                if stac_ext_info.stac_extension in stac_object.stac_extensions
+                if stac_ext_info.stac_extension in stac_extensions
             ][0]
         )
 

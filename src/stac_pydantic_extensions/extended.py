@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 from warnings import warn
 
 from pydantic import AnyUrl, ConfigDict, model_validator
 from stac_pydantic.collection import Range
 from stac_pydantic.shared import StacBaseModel
 
+from stac_pydantic_extensions import Band
 from stac_pydantic_extensions._registry import extension_registry
 from stac_pydantic_extensions.compat.stac_pydantic import (
     STAC_VERSION,
@@ -276,23 +277,32 @@ class ExtendedItem(StacBaseModel):
 
             if isinstance(new_stac_obj, Item):
                 new_stac_obj.assets = {
-                    asset_name: ExtendedItem(stac_object=asset).remove_extension(
-                        ext_name
+                    asset_name: cast(
+                        Asset,
+                        ExtendedItem(stac_object=asset).remove_extension(ext_name),
                     )
                     for asset_name, asset in new_stac_obj.assets.items()
                 }
                 # Inspect bands for item
                 if new_stac_obj.properties.bands is not None:
                     new_stac_obj.properties.bands = [
-                        ExtendedItem(stac_object=band).remove_extension(ext_name)
+                        cast(
+                            Band,
+                            ExtendedItem(stac_object=band).remove_extension(ext_name),
+                        )
                         for band in new_stac_obj.properties.bands
                     ]
                 # ...And for asset
                 for asset_name, asset in new_stac_obj.assets.items():
                     if "bands" in asset._additional_fields:
-                        new_stac_obj.assets[asset_name].bands = [
-                            ExtendedItem(stac_object=band).remove_extension(ext_name)
-                            for band in asset.bands
+                        new_stac_obj.assets[asset_name].bands = [  # ty: ignore[unresolved-attribute]
+                            cast(
+                                Band,
+                                ExtendedItem(stac_object=band).remove_extension(
+                                    ext_name
+                                ),
+                            )
+                            for band in asset.bands  # ty: ignore[unresolved-attribute]
                         ]
 
             self.stac_object = new_stac_obj

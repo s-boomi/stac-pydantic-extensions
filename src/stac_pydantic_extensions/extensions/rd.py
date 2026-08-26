@@ -10,6 +10,7 @@ from stac_pydantic_extensions.extensions._base import (
     BaseExtraFields,
     prefix_alias,
 )
+from stac_pydantic_extensions.types import ExtendableStacObject
 
 if TYPE_CHECKING:
     from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
@@ -40,6 +41,11 @@ class RemoteDataFields(BaseExtraFields):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="rd")
     )
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str
+    ) -> RemoteDataFields:
+        return self
+
 
 FIELD_MODELS = {"v1.0.0": RemoteDataFields}
 
@@ -63,13 +69,14 @@ class RemoteDataExtension(BaseExtension):
         properties = cls._extract_properties(stac_object=stac_object)
 
         # Find the version
+        stac_extensions = stac_object.stac_extensions or []
         stac_ext_version = (
             cls.version
-            if cls.stac_extension in stac_object.stac_extensions
+            if cls.stac_extension in stac_extensions
             else [
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
-                if stac_ext_info.stac_extension in stac_object.stac_extensions
+                if stac_ext_info.stac_extension in stac_extensions
             ][0]
         )
 

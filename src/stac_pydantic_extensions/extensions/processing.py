@@ -13,6 +13,7 @@ from stac_pydantic_extensions.extensions._base import (
     prefix_alias,
 )
 from stac_pydantic_extensions.types import (
+    ExtendableStacObject,
     ProcessingFieldsType,
     StacObject,
     StacSecondaryObject,
@@ -39,6 +40,12 @@ class ProcessingFields_V1_0_0(BaseExtraFields):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="processing")
     )
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str
+    ) -> ProcessingFieldsType:
+        obj = stac_object.model_dump()
+        return ProcessingFields.model_validate(obj)
+
 
 class ProcessingFields_V1_1_0(ProcessingFields_V1_0_0):
     """https://github.com/stac-extensions/processing/tree/v1.0.0"""
@@ -48,6 +55,12 @@ class ProcessingFields_V1_1_0(ProcessingFields_V1_0_0):
     model_config = ConfigDict(
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="processing")
     )
+
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str
+    ) -> ProcessingFieldsType:
+        obj = stac_object.model_dump()
+        return ProcessingFields.model_validate(obj)
 
 
 class ProcessingFields_V1_2_0(ProcessingFields_V1_1_0):
@@ -61,6 +74,11 @@ class ProcessingFields_V1_2_0(ProcessingFields_V1_1_0):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="processing")
     )
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str | None = None
+    ) -> ProcessingFieldsType:
+        return self
+
 
 class ProcessingFields(ProcessingFields_V1_2_0):
     """https://github.com/stac-extensions/processing"""
@@ -69,8 +87,13 @@ class ProcessingFields(ProcessingFields_V1_2_0):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="processing")
     )
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str | None = None
+    ) -> ProcessingFields:
+        return self
 
-class OldProjectionExtension(OldBaseExtension):
+
+class OldProcessingExtension(OldBaseExtension):
     prefix: str = "processing"
     maturity_level: MaturityLevel = MaturityLevel.PROPOSAL
 
@@ -91,8 +114,8 @@ class ProcessingExtension(BaseExtension):
     version: ClassVar[Literal["v1.2.0"]] = "v1.2.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
     maturity_level: ClassVar[MaturityLevel] = MaturityLevel.CANDIDATE
-    old_stac_extensions: ClassVar[list[OldProjectionExtension]] = [
-        OldProjectionExtension(
+    old_stac_extensions: ClassVar[list[OldProcessingExtension]] = [
+        OldProcessingExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/processing/v1.0.0/schema.json"
             ),
@@ -102,7 +125,7 @@ class ProcessingExtension(BaseExtension):
                 "Collection",
             },
         ),
-        OldProjectionExtension(
+        OldProcessingExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/processing/1.1.0/schema.json"
             ),
@@ -124,13 +147,14 @@ class ProcessingExtension(BaseExtension):
         properties = cls._extract_properties(stac_object=stac_object)
 
         # Find the version
+        stac_extensions = stac_object.stac_extensions or []
         stac_ext_version = (
             cls.version
-            if cls.stac_extension in stac_object.stac_extensions
+            if cls.stac_extension in stac_extensions
             else [
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
-                if stac_ext_info.stac_extension in stac_object.stac_extensions
+                if stac_ext_info.stac_extension in stac_extensions
             ][0]
         )
 

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         ProcessingFields,
         ProcessingFields_V1_0_0,
         ProcessingFields_V1_1_0,
+        ProcessingFields_V1_2_0,
     )
     from stac_pydantic_extensions.extensions.proj import (
         ProjectionFields,
@@ -79,6 +80,4 @@ ViewGeometryFieldsType: TypeAlias = (
     "ViewGeometryFields | ViewGeometryFields_V1_0_0 | ViewGeometryFields_V1_1_0"
 )
 ProjectionFieldsType: TypeAlias = "ProjectionFields | ProjectionFields_V1_0_0 | ProjectionFields_V1_1_0 | ProjectionFields_V1_2_0"
-ProcessingFieldsType: TypeAlias = (
-    "ProcessingFields | ProcessingFields_V1_0_0 | ProcessingFields_V1_1_0"
-)
+ProcessingFieldsType: TypeAlias = "ProcessingFields | ProcessingFields_V1_0_0 | ProcessingFields_V1_1_0 | ProcessingFields_V1_2_0"

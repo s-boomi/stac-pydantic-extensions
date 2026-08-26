@@ -51,17 +51,32 @@ class ProjectionFields_V1_0_0(BaseExtraFields):
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="proj")
     )
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str | None = None
+    ) -> ProjectionFieldsType:
+        return self
+
 
 class ProjectionFields_V1_1_0(ProjectionFields_V1_0_0):
     """https://github.com/stac-extensions/projection/tree/v1.1.0"""
 
     epsg: int | None = None
 
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str | None = None
+    ) -> ProjectionFieldsType:
+        return self
+
 
 class ProjectionFields_V1_2_0(ProjectionFields_V1_1_0):
     """https://github.com/stac-extensions/projection/tree/v1.2.0"""
 
     code: ProjCodeValue | None = None
+
+    def migrate(
+        self, stac_object: ExtendableStacObject, version: str | None = None
+    ) -> ProjectionFieldsType:
+        return self
 
 
 class ProjectionFields(BaseExtraFields):
@@ -82,7 +97,7 @@ class ProjectionFields(BaseExtraFields):
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str
-    ) -> ProjectionFieldsType:
+    ) -> ProjectionFields:
         return self
 
 
@@ -160,13 +175,14 @@ class ProjectionExtension(BaseExtension):
         properties = cls._extract_properties(stac_object=stac_object)
 
         # Find the version
+        stac_extensions = stac_object.stac_extensions or []
         stac_ext_version = (
             cls.version
-            if cls.stac_extension in stac_object.stac_extensions
+            if cls.stac_extension in stac_extensions
             else [
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
-                if stac_ext_info.stac_extension in stac_object.stac_extensions
+                if stac_ext_info.stac_extension in stac_extensions
             ][0]
         )
 

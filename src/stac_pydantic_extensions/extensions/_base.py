@@ -228,13 +228,14 @@ class BaseExtension(_BaseClassExtension):
 
         properties = cls._extract_properties(stac_object=stac_object)
 
+        stac_extensions = stac_object.stac_extensions or []
         stac_ext_version = (
             cls.version
-            if cls.stac_extension in stac_object.stac_extensions
+            if cls.stac_extension in stac_extensions
             else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
-                if stac_ext_info.stac_extension in stac_object.stac_extensions
+                if stac_ext_info.stac_extension in stac_extensions
             )
         )
 
@@ -244,7 +245,7 @@ class BaseExtension(_BaseClassExtension):
         if migrate and stac_ext_version != cls.version:
             stac_object.stac_extensions = [
                 stac_extension
-                for stac_extension in stac_object.stac_extensions
+                for stac_extension in stac_extensions
                 if stac_extension not in cls.schema_uris()
             ]
             stac_object.stac_extensions.append(cls.stac_extension)

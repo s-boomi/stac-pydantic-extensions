@@ -74,6 +74,7 @@ def test_band_migration_to_2_0(simple_item: Item):
     ]
     item_obj["assets"] = stac_assets_2_0["assets"]
     item_with_assets_2_0 = Item.model_validate(item_obj)
+    assert item_with_assets_2_0
 
     extended_item = ExtendedItem(stac_object=item_with_assets_1_0)
     migrated_ext_item = extended_item.migrate()

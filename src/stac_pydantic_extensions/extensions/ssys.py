@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict
 
@@ -15,6 +15,11 @@ from stac_pydantic_extensions.types import (
     StacObject,
     StacSecondaryObject,
 )
+
+if TYPE_CHECKING:
+    from stac_pydantic_extensions.types import (
+        ExtendableStacObject,
+    )
 
 
 class SolSysTargets(StrEnum):
@@ -42,7 +47,7 @@ class SolSysFields(BaseExtraFields):
 
     targets: list[str] | None = None
     local_time: str | None = None
-    target_class: SolSysTargets | None = None
+    target_class: SolSysTargets | list[SolSysTargets] | None = None
 
     model_config = ConfigDict(
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="ssys")
@@ -113,3 +118,19 @@ class SolSysExtension(BaseExtension):
         obj_properties = stac_object.to_dict()
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             return cls(fields=SolSysFields.model_validate(obj_properties))
+
+    @classmethod
+    def add_extension(
+        cls, stac_object: "ExtendableStacObject", **ext_fields
+    ) -> BaseExtension:
+        """Returns an instantiated form of the SolSysExtension with the corresponding fields"""
+        if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):
+            if stac_object.stac_extensions is None:
+                stac_object.stac_extensions = []
+            stac_object.stac_extensions.append(cls.stac_extension)
+            return cls(fields=SolSysFields(**ext_fields))
+
+        if isinstance(stac_object, StacSecondaryObject):
+            return cls(fields=SolSysFields(**ext_fields))
+
+        raise ValueError("This type of file isn't taken into account")

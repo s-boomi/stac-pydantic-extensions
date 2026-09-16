@@ -9,6 +9,7 @@ from stac_pydantic_extensions.compat.stac_pydantic import Collection, Item, Link
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
+    as_summary_fields,
     prefix_alias,
 )
 from stac_pydantic_extensions.model_annotations import ValidateDoi
@@ -95,6 +96,8 @@ class ScientificCitationExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

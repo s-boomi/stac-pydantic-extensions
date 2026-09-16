@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict, Field
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
+    as_summary_fields,
     prefix_alias,
 )
 from stac_pydantic_extensions.types import ExtendableStacObject
@@ -81,6 +83,8 @@ class RemoteDataExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

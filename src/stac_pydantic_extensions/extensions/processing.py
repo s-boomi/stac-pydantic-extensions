@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
     MaturityLevel,
     OldBaseExtension,
+    as_summary_fields,
     prefix_alias,
 )
 from stac_pydantic_extensions.types import (
@@ -159,6 +161,8 @@ class ProcessingExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

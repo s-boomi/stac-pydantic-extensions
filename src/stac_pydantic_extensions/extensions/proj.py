@@ -1,28 +1,34 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Literal
+from functools import lru_cache
+from typing import ClassVar, Literal
 
 from geojson_pydantic.geometries import Geometry
-from pydantic import AnyUrl, ConfigDict, Field
+from geojson_pydantic.types import BBox
+from pydantic import AnyUrl, ConfigDict, Field, create_model
 from stac_pydantic.shared import StacBaseModel
+from typing_extensions import Any
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
     MaturityLevel,
     OldBaseExtension,
+    as_summary_fields,
     prefix_alias,
 )
 from stac_pydantic_extensions.extensions._projjson import ProjJson
 from stac_pydantic_extensions.model_annotations import (
-    BboxValue,
     ProjCodeValue,
     ProjWktValue,
 )
-from stac_pydantic_extensions.types import ExtendableStacObject, ProjectionFieldsType
-
-if TYPE_CHECKING:
-    from stac_pydantic_extensions.types import StacObject, StacSecondaryObject
+from stac_pydantic_extensions.types import (
+    ExtendableStacObject,
+    ProjectionFieldsType,
+    StacObject,
+    StacSecondaryObject,
+)
 
 
 class Centroid(StacBaseModel):
@@ -40,9 +46,9 @@ class ProjectionFields_V1_0_0(BaseExtraFields):
 
     epsg: int = Field(...)
     wkt2: ProjWktValue | None = None
-    projjson: ProjJson | None = None
+    projjson: ProjJson | dict[str, Any] | None = None  # In the meantime
     geometry: Geometry | None = None
-    bbox: BboxValue | None = None
+    bbox: BBox | None = None
     centroid: Centroid | None = None
     shape: list[int] | None = None
     transform: list[float | int] | None = None
@@ -84,9 +90,9 @@ class ProjectionFields(BaseExtraFields):
 
     code: ProjCodeValue | None = None
     wkt2: ProjWktValue | None = None
-    projjson: ProjJson | None = None
+    projjson: ProjJson | dict[str, Any] | None = None  # Temporary fix
     geometry: Geometry | None = None
-    bbox: BboxValue | None = None
+    bbox: BBox | None = None  # Removing validator because projection dependent
     centroid: Centroid | None = None
     shape: list[int] | None = None
     transform: list[float | int] | None = None
@@ -107,6 +113,19 @@ FIELD_MODELS = {
     "v1.2.0": ProjectionFields_V1_2_0,
     "v2.0.0": ProjectionFields,
 }
+
+
+@lru_cache(maxsize=None)
+def as_proj_summary_fields(
+    fields_cls: type[ProjectionFields],
+) -> type[ProjectionFields]:
+    summary_fields = as_summary_fields(fields_cls)
+
+    return create_model(
+        f"{fields_cls.__name__}ProjSummary",
+        __base__=summary_fields,
+        code=(list[int | None] | None, fields_cls.model_fields["code"]),
+    )
 
 
 class ProjectionExtension(BaseExtension):
@@ -187,6 +206,8 @@ class ProjectionExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_proj_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:
@@ -214,3 +235,19 @@ class ProjectionExtension(BaseExtension):
         obj_properties = stac_object.to_dict()
         if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
             return cls(fields=ProjectionFields.model_validate(obj_properties))
+
+    @classmethod
+    def add_extension(
+        cls, stac_object: ExtendableStacObject, **ext_fields
+    ) -> BaseExtension:
+        """Returns an instantiated form of the RasterExtension with the corresponding fields"""
+        if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):
+            if stac_object.stac_extensions is None:
+                stac_object.stac_extensions = []
+            stac_object.stac_extensions.append(cls.stac_extension)
+            return cls(fields=ProjectionFields(**ext_fields))
+
+        if isinstance(stac_object, StacSecondaryObject):
+            return cls(fields=ProjectionFields(**ext_fields))
+
+        raise ValueError("This type of file isn't taken into account")

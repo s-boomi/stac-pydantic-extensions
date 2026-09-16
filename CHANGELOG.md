@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-16
+
+### Added
+
+- Created helper for collection summaries
+
+### Fixed
+
+- `projection` would return BBox validation errors over non-Mercator projections. This has been relaxed.
+- Relaxed the rigid rules of Projjson to avoid more complexity
+
 
 ## [0.1.1] - 2026-09-15
 

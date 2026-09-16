@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import NumType, StacBaseModel
 
-from stac_pydantic_extensions import DataTypes, NoDataTypes, Statistics
+from stac_pydantic_extensions import DataTypes, NoDataTypes, Statistics, Collection
 from stac_pydantic_extensions.compat.stac_pydantic import Asset, Band, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
@@ -14,6 +14,7 @@ from stac_pydantic_extensions.extensions._base import (
     MaturityLevel,
     OldBaseExtension,
     prefix_alias,
+    as_summary_fields,
 )
 from stac_pydantic_extensions.types import (
     RasterFieldsType,
@@ -283,6 +284,8 @@ class RasterExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AnyUrl, ConfigDict
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
     prefix_alias,
+    as_summary_fields,
 )
 from stac_pydantic_extensions.types import (
     ExtendableStacObject,
@@ -47,7 +49,7 @@ class SolSysFields(BaseExtraFields):
 
     targets: list[str] | None = None
     local_time: str | None = None
-    target_class: SolSysTargets | list[SolSysTargets] | None = None
+    target_class: SolSysTargets | None = None
 
     model_config = ConfigDict(
         extra="ignore", alias_generator=lambda s: prefix_alias(s, prefix="ssys")
@@ -91,6 +93,8 @@ class SolSysExtension(BaseExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

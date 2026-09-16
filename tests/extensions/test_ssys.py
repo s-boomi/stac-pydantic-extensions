@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 from stac_pydantic import Catalog
 from stac_pydantic.extensions import validate_extensions
 
@@ -137,3 +138,38 @@ def test_manual_targets_list_mutation(test_files):
 
     new_item_dict = extended_item.model_dump()
     assert new_item_dict["properties"]["ssys:targets"] == ["Europa", "Io"]
+
+
+def test_target_class_rejects_list_on_item(test_files):
+    """An Item's ssys:target_class must be a single value, not a summary-style list."""
+    test_item = read_json(test_files / "item.json")
+    test_item["properties"]["ssys:target_class"] = ["planet", "satellite"]
+
+    item = Item(**test_item)  # this alone won't fail — properties allows extras freely
+
+    with pytest.raises(ValidationError):
+        ExtendedItem(stac_object=item)
+
+
+def test_target_class_accepts_list_in_collection_summary(test_files):
+    test_collection = read_json(test_files / "collection.json")
+    test_collection.setdefault("summaries", {})["ssys:target_class"] = [
+        "planet",
+        "satellite",
+    ]
+
+    extended = ExtendedItem(stac_object=Collection(**test_collection))
+    assert isinstance(extended.ext.ssys, SolSysExtension)
+    assert extended.ext.ssys.target_class == ["planet", "satellite"]
+
+
+def test_target_class_summary_rejects_nested_list(test_files):
+    """Broadening for summaries should allow a flat list of values, not lists-of-lists."""
+    test_collection = read_json(test_files / "collection.json")
+    test_collection.setdefault("summaries", {})["ssys:target_class"] = [
+        ["planet"],
+        "moon",
+    ]
+
+    with pytest.raises(ValidationError):
+        ExtendedItem(stac_object=Collection(**test_collection))

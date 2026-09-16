@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, ClassVar
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
-from pydantic import AnyUrl, ConfigDict, computed_field
+from pydantic import AnyUrl, ConfigDict, computed_field, create_model
+from stac_pydantic.collection import Range
 from stac_pydantic.shared import StacBaseModel
 
 from stac_pydantic_extensions import Collection, Item
@@ -58,6 +60,29 @@ class BaseExtraFields(StacBaseModel):
         migrate items
         """
         return self
+
+
+BaseExtraFieldsT = TypeVar("BaseExtraFieldsT", bound=BaseExtraFields)
+
+
+@lru_cache(maxsize=None)
+def as_summary_fields(fields_cls: type[BaseExtraFieldsT]) -> type[BaseExtraFieldsT]:
+    """Build a variant of `fields_cls` where every field also accepts the
+    Collection-summary forms: a Range, or a list of allowed values."""
+    overrides: dict[str, tuple[Any, Any]] = {}
+    for name, field in fields_cls.model_fields.items():
+        annotation = field.annotation
+        if annotation is None:
+            # No concrete type captured for this field — leave it as-is,
+            # nothing to broaden.
+            continue
+        overrides[name] = (annotation | list[annotation] | Range | None, field)
+
+    return create_model(  # ty:ignore[no-matching-overload]
+        f"{fields_cls.__name__}Summary",
+        __base__=fields_cls,
+        **overrides,
+    )
 
 
 class OldBaseExtraFields(BaseExtraFields):
@@ -240,6 +265,11 @@ class BaseExtension(_BaseClassExtension):
         )
 
         model = FIELD_MODELS[stac_ext_version]
+
+        # For collections, summaries are the same but under a list
+        if isinstance(stac_object, Collection):
+            model = as_summary_fields(model)
+
         fields = model.model_validate(properties or {})
 
         if migrate and stac_ext_version != cls.version:

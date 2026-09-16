@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from collections import Counter
 from typing import TYPE_CHECKING, Any, Self, cast
 from warnings import warn
@@ -95,13 +96,27 @@ class ExtensionContainer:
             if stac_extensions is not None and len(stac_extensions) > 0:
                 available_extensions = self._extension_index()
                 for stac_extension in stac_extensions:
-                    ext_key = available_extensions[stac_extension]
-                    CurrentExtension = self.fields[ext_key]
-                    ext_obj = CurrentExtension.from_stac_object(
-                        stac_object, migrate=migrate
-                    )
-                    if ext_obj is not None:
-                        self._instanciated[ext_key] = ext_obj
+                    try:
+                        if stac_extension == AnyUrl(
+                            "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json"
+                        ):
+                            warnings.warn(
+                                "The item-assets extension is deprecated since STAC 1.1. It will switch to Collection's ItemAssets instead.",
+                                DeprecationWarning,
+                            )
+                            continue
+                        ext_key = available_extensions[stac_extension]
+                        CurrentExtension = self.fields[ext_key]
+                        ext_obj = CurrentExtension.from_stac_object(
+                            stac_object, migrate=migrate
+                        )
+                        if ext_obj is not None:
+                            self._instanciated[ext_key] = ext_obj
+                    except KeyError as kerr:
+                        raise KeyError(
+                            f"{stac_extension} not found among available extensions in the registry."
+                            " Add it in `extension_registry` and create a MR."
+                        ) from kerr
                 return
         if isinstance(stac_object, StacSecondaryObject):
             ext_found = set(

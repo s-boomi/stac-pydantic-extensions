@@ -88,7 +88,7 @@ def test_extension_on_collection(test_files):
 
     # Raw summaries are untouched dict values (not run through the field model)
     assert collection.summaries is not None
-    assert collection.summaries["proj:code"] == [32659, None]
+    assert collection.summaries["proj:code"] == ["EPSG:32659", None]
 
     # item_assets entries are StacSecondaryObjects, so proj fields on them
     # are read the same way as on a regular Asset.

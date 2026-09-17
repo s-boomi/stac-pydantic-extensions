@@ -5,7 +5,7 @@ from typing import ClassVar, Literal
 
 from geojson_pydantic.geometries import Geometry
 from geojson_pydantic.types import BBox
-from pydantic import AnyUrl, ConfigDict, Field, create_model
+from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import StacBaseModel
 from typing_extensions import Any
 
@@ -119,13 +119,7 @@ FIELD_MODELS = {
 def as_proj_summary_fields(
     fields_cls: type[ProjectionFields],
 ) -> type[ProjectionFields]:
-    summary_fields = as_summary_fields(fields_cls)
-
-    return create_model(
-        f"{fields_cls.__name__}ProjSummary",
-        __base__=summary_fields,
-        code=(list[int | None] | None, fields_cls.model_fields["code"]),
-    )
+    return as_summary_fields(fields_cls)
 
 
 class ProjectionExtension(BaseExtension):
@@ -164,7 +158,7 @@ class ProjectionExtension(BaseExtension):
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/projection/1.2.0/schema.json"
             ),
-            version="v1.1.0",
+            version="v1.2.0",
             allowed_objects={
                 "Item",
                 "Asset",
@@ -175,7 +169,7 @@ class ProjectionExtension(BaseExtension):
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/projection/2.0.0/schema.json"
             ),
-            version="v1.1.0",
+            version="v2.0.0",
             allowed_objects={
                 "Item",
                 "Asset",

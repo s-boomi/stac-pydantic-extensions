@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-09-17
+## [0.2.2] - 2026-09-17
+
+### Fixed
+
+- Issues on original test fixture of `projection`.
+
+
+## [0.2.1] - 2026-09-17
 
 ### Fixed
 

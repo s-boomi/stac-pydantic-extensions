@@ -35,14 +35,24 @@ def validate_percentage(v: NumType | Range | None) -> NumType | Range | None:
 
 
 def validate_proj_code(v: str | None) -> str | None:
+    if v is None:
+        return None
+
+    v = v.strip()
+
     try:
-        if v is not None:
-            if v.startswith("epsg:"):
-                CRS.from_epsg(int(v.split(":")[-1]))
-            else:
-                CRS.from_string(v)
+        if v.lower().startswith("epsg:"):
+            CRS.from_epsg(int(v.split(":")[-1]))
+        elif v.lower().startswith("iau:"):
+            # PROJ's IAU authority lookup is case-sensitive — "iau" alone
+            # isn't recognized, only "IAU". The rest of the code (body id,
+            # feature code) can stay as the user wrote it.
+            _, rest = v.split(":", 1)
+            CRS.from_string(f"urn:ogc:def:crs:IAU:{rest}")
+        else:
+            CRS.from_string(v)
     except Exception as e:
-        raise ValidationError(f"{v} is not a valid proj code") from e
+        raise ValueError(f"{v} is not a valid proj code") from e
 
     return v
 

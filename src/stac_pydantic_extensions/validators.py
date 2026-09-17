@@ -1,5 +1,7 @@
 import re
+from typing import cast
 
+from geojson_pydantic.types import BBox
 from pydantic import ValidationError
 from pyproj import CRS
 from pyproj.exceptions import CRSError
@@ -123,6 +125,41 @@ def validate_elevation(v: float | int | None) -> float | int | None:
         if v < -90 or v > 90:
             raise ValidationError(
                 f"Sun elevation angle must be between -90 and 90° (value={v})"
+            )
+
+    return v
+
+
+def validate_bbox(v: BBox | None) -> BBox | None:
+    """Validate BBOX value against WGS84 (-180/-90/180/90)
+    or extraterrestrial (0/0/360/180) conventions."""
+    if v is not None:
+        if len(v) == 4:
+            xmin, ymin, xmax, ymax = cast(tuple[int, int, int, int], v)
+
+        elif len(v) == 6:
+            xmin, ymin, min_elev, xmax, ymax, max_elev = cast(
+                tuple[int, int, int, int, int, int], v
+            )
+            if max_elev < min_elev:
+                raise ValueError(
+                    "Maximum elevation must greater than minimum elevation"
+                )
+        else:
+            raise ValueError("Bounding box must have 4 or 6 coordinates")
+
+        # Check against both accepted conventions
+        is_standard = xmin >= -180 and ymin >= -90 and xmax <= 180 and ymax <= 90
+        is_extraterrestrial = xmin >= 0 and ymin >= 0 and xmax <= 360 and ymax <= 180
+
+        if not (is_standard or is_extraterrestrial):
+            raise ValueError(
+                "Bounding box must be within (-180, -90, 180, 90) or (0, 0, 360, 180)"
+            )
+
+        if ymax < ymin:
+            raise ValueError(
+                f"Maximum latitude ({ymax}) must be greater than minimum latitude  ({ymin})"
             )
 
     return v

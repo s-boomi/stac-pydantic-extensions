@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-09-17
+
+### Fixed
+
+- Expanded the BboxExtend to accept [0,0,360,180] coordinates
+
 ## [0.2.3] - 2026-09-17
 
 ### Fixed

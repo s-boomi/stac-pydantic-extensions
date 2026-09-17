@@ -149,17 +149,77 @@ def validate_bbox(v: BBox | None) -> BBox | None:
             raise ValueError("Bounding box must have 4 or 6 coordinates")
 
         # Check against both accepted conventions
-        is_standard = xmin >= -180 and ymin >= -90 and xmax <= 180 and ymax <= 90
-        is_extraterrestrial = xmin >= 0 and ymin >= 0 and xmax <= 360 and ymax <= 180
 
-        if not (is_standard or is_extraterrestrial):
+        lon_valid = (-180 <= xmin and xmax <= 180) or (0 <= xmin and xmax <= 360)
+        lat_valid = (-90 <= ymin and ymax <= 90) or (0 <= ymin and ymax <= 180)
+
+        if not (lon_valid and lat_valid):
             raise ValueError(
-                "Bounding box must be within (-180, -90, 180, 90) or (0, 0, 360, 180)"
+                "Bounding box must be within (-180, -90, 180, 90) "
+                "or (0, 0, 360, 180), longitude and latitude checked independently"
             )
 
         if ymax < ymin:
             raise ValueError(
                 f"Maximum latitude ({ymax}) must be greater than minimum latitude  ({ymin})"
             )
+
+    return v
+
+
+def validate_bbox_interval(v: list[BBox]) -> list[BBox]:  # noqa: C901
+    ivalues = iter(v)
+
+    overall_bbox = next(ivalues, None)
+    if not overall_bbox:
+        return v
+
+    assert validate_bbox(overall_bbox)
+
+    if len(overall_bbox) == 4:
+        xmin, ymin, xmax, ymax = overall_bbox
+    else:
+        xmin, ymin, _, xmax, ymax, _ = overall_bbox
+
+    # Split point for antimeridian wraparound depends only on the longitude
+    # convention in use: standard (-180/180) wraps at +/-180, split at 0.
+    # 0-360 style wraps at 0/360, split at 180. Latitude convention is irrelevant here.
+    lon_is_standard = xmin < 0 or xmax < 0
+    split = 0 if lon_is_standard else 180
+
+    crossing_antimeridian = xmin > xmax
+    for bbox in ivalues:
+        error_msg = ValueError(
+            f"`BBOX` {bbox} not fully contained in `Overall BBOX` {overall_bbox}"
+        )
+        _ = validate_bbox(bbox)
+
+        if len(bbox) == 4:
+            xmin_sub, ymin_sub, xmax_sub, ymax_sub = bbox
+        else:
+            xmin_sub, ymin_sub, _, xmax_sub, ymax_sub, _ = bbox
+
+        if not ((ymin_sub >= ymin) and (ymax_sub <= ymax)):
+            raise error_msg
+
+        sub_crossing_antimeridian = xmin_sub > xmax_sub
+        if not crossing_antimeridian and sub_crossing_antimeridian:
+            raise error_msg
+
+        elif crossing_antimeridian:
+            # Case 1
+            if sub_crossing_antimeridian:
+                if not (xmin_sub > xmin and xmax_sub < xmax):
+                    raise error_msg
+            # Case 2
+            elif xmin_sub >= split and xmin_sub < xmin:
+                raise error_msg
+            # Case 3
+            elif xmin_sub <= split and xmax_sub > xmax:
+                raise error_msg
+
+        else:
+            if not ((xmin_sub >= xmin) and (xmax_sub <= xmax)):
+                raise error_msg
 
     return v

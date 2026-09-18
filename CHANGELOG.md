@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-18
+
+### Added
+
+- Tooling module as helpers
+  - WGS84 converter for BBoxes in the [0, 0, 360, 180] range
+
+
 ## [0.2.3.a] - 2026-09-18
 
 ### Fixed

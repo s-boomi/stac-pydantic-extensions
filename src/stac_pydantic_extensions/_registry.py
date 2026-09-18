@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Type
 from pydantic import Field
 
 from stac_pydantic_extensions.extensions._base import BaseExtension
+from stac_pydantic_extensions.extensions.cube import DatacubeExtension
 from stac_pydantic_extensions.extensions.eo import ElectroOpticalExtension
 from stac_pydantic_extensions.extensions.processing import ProcessingExtension
 from stac_pydantic_extensions.extensions.proj import ProjectionExtension
@@ -30,6 +31,7 @@ AVAILABLE_EXTENSIONS: list[Type[BaseExtension]] = [
     RasterExtension,
     SatelliteExtension,
     ProcessingExtension,
+    DatacubeExtension,
 ]
 
 

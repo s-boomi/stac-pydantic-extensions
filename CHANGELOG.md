@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.3.a] - 2026-09-18
+
+### Fixed
+
+- Datacube not imported in registry
+
 ## [0.2.2] - 2026-09-17
 
 ### Fixed

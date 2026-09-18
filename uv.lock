@@ -760,7 +760,7 @@ wheels = [
 
 [[package]]
 name = "stac-pydantic-extensions"
-version = "0.2.2"
+version = "0.2.3a0"
 source = { editable = "." }
 dependencies = [
   { name = "geojson-pydantic" },

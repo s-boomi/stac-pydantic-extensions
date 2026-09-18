@@ -148,7 +148,7 @@ def test_validate_bbox_none_returns_none():
         (200, 100, 250, 150),
     ],
 )
-def test_validate_bbox_valid_4_coord_bbox(bbox):
+def test_valid_4_coord_bbox(bbox):
     assert validators.validate_bbox(bbox) == bbox
 
 
@@ -160,7 +160,7 @@ def test_validate_bbox_valid_4_coord_bbox(bbox):
         (10, 10, -500, 20, 20, 500),  # standard, negative min_elev
     ],
 )
-def test_validate_bbox_valid_6_coord_bbox(bbox):
+def test_valid_6_coord_bbox(bbox):
     assert validators.validate_bbox(bbox) == bbox
 
 
@@ -181,7 +181,7 @@ def test_validate_bbox_valid_6_coord_bbox(bbox):
         (-181, 0, 0, 10),  # xmin < -180
     ],
 )
-def test_validate_bbox_invalid_bbox_out_of_range(bbox):
+def test_invalid_bbox_out_of_range(bbox):
     with pytest.raises(ValueError, match="Bounding box must be within"):
         validators.validate_bbox(bbox)
 
@@ -193,14 +193,14 @@ def test_validate_bbox_invalid_bbox_out_of_range(bbox):
         (10, 100, 20, 50),  # extraterrestrial range, but ymax < ymin
     ],
 )
-def test_validate_bbox_invalid_latitude_order(bbox):
+def test_invalid_latitude_order(bbox):
     with pytest.raises(
         ValueError, match="Maximum latitude .* must be greater than minimum latitude"
     ):
         validators.validate_bbox(bbox)
 
 
-def test_validate_bbox_invalid_elevation_order():
+def test_invalid_elevation_order():
     bbox = (-10, -10, 1000, 10, 10, 500)  # max_elev < min_elev
     with pytest.raises(
         ValueError, match="Maximum elevation must greater than minimum elevation"
@@ -217,68 +217,6 @@ def test_validate_bbox_invalid_elevation_order():
         (),
     ],
 )
-def test_validate_bbox_invalid_length(bbox):
+def test_invalid_length(bbox):
     with pytest.raises(ValueError, match="Bounding box must have 4 or 6 coordinates"):
         validators.validate_bbox(bbox)
-
-
-def test_validate_bbox_interval_empty_list_returns_unchanged():
-    assert validators.validate_bbox_interval([]) == []
-
-
-def test_validate_bbox_interval_single_overall_bbox_standard():
-    v = [(-180, -90, 180, 90)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_single_overall_bbox_mixed_convention():
-    v = [(0.064, -60.0, 359.988, 59.9688)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_sub_bbox_contained_standard():
-    v = [(-180, -90, 180, 90), (-10, -10, 10, 10)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_sub_bbox_contained_mixed_convention():
-    # Overall uses lon 0-360 / lat -90-90; sub-bbox nested within it.
-    v = [(0.064, -60.0, 359.988, 59.9688), (100, -20, 200, 20)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_sub_bbox_not_contained_in_latitude():
-    v = [(0.064, -60.0, 359.988, 59.9688), (100, -70, 200, 20)]
-    with pytest.raises(ValueError, match="not fully contained"):
-        validators.validate_bbox_interval(v)
-
-
-def test_validate_bbox_interval_sub_bbox_not_contained_in_longitude():
-    v = [(10, -60.0, 350, 59.9688), (5, -10, 20, 10)]
-    with pytest.raises(ValueError, match="not fully contained"):
-        validators.validate_bbox_interval(v)
-
-
-def test_validate_bbox_interval_antimeridian_crossing_standard_convention():
-    # Overall crosses antimeridian at +/-180 (split=0)
-    v = [(174, -3, -174, 5), (176, 1, 179, 3)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_antimeridian_crossing_standard_convention_invalid():
-    v = [(174, -3, -174, 5), (170, 1, 179, 3)]  # xmin_sub < overall xmin
-    with pytest.raises(ValueError, match="not fully contained"):
-        validators.validate_bbox_interval(v)
-
-
-def test_validate_bbox_interval_antimeridian_crossing_extraterrestrial_convention():
-    # Overall crosses wrap at 0/360 (split=180); equivalent shape to the
-    # standard case above but shifted into 0-360 space.
-    v = [(354, 0, 186, 95), (356, 5, 359, 8)]
-    assert validators.validate_bbox_interval(v) == v
-
-
-def test_validate_bbox_interval_sub_crossing_but_overall_not_crossing_raises():
-    v = [(-10, -10, 10, 10), (5, -5, -5, 5)]  # sub wraps, overall doesn't
-    with pytest.raises(ValueError, match="not fully contained"):
-        validators.validate_bbox_interval(v)

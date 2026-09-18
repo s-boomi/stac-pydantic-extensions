@@ -1,18 +1,14 @@
 from enum import auto
-from typing import Annotated, Any, Dict, List, Optional, Self, Union
+from typing import Any, Dict, List, Optional, Self, Union
 
-from geojson_pydantic.types import BBox
-from pydantic import AfterValidator, ConfigDict, PrivateAttr, model_validator
+from pydantic import ConfigDict, PrivateAttr, model_validator
 from stac_pydantic import Collection as OldCollection
 from stac_pydantic import Item as OldItem
-from stac_pydantic.collection import TimeInterval
 from stac_pydantic.links import Link as OldLink
 from stac_pydantic.shared import Asset as OldAsset
 from stac_pydantic.shared import StacBaseModel
 from stac_pydantic.shared import StacCommonMetadata as OldStacCommonMetadata
 from stac_pydantic.utils import AutoValueEnum
-
-from stac_pydantic_extensions.validators import validate_bbox_interval
 
 STAC_VERSION = "1.1.0"
 
@@ -99,32 +95,12 @@ class ItemAsset(StacBaseModel):
     )
 
 
-class SpatialExtent(StacBaseModel):
-    """
-    https://github.com/radiantearth/stac-spec/blob/v1.1.0/collection-spec/collection-spec.md#spatial-extent-object
-
-    Changed to be more flexible with absolute coordinates instead of just WGS84.
-    """
-
-    bbox: Annotated[list[BBox], AfterValidator(validate_bbox_interval)]
-
-
-class Extent(StacBaseModel):
-    """
-    https://github.com/radiantearth/stac-spec/blob/v1.1.0/collection-spec/collection-spec.md#extent-object
-    """
-
-    spatial: SpatialExtent
-    temporal: TimeInterval
-
-
 class Collection(OldCollection):
     """
     https://github.com/radiantearth/stac-spec/blob/v1.1.0/collection-spec/collection-spec.md
     """
 
     item_assets: Optional[Dict[str, ItemAsset]] = None
-    extent: Extent
 
 
 class ItemProperties(StacCommonMetadata):

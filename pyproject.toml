@@ -1,6 +1,6 @@
 [project]
 name = "stac-pydantic-extensions"
-version = "0.2.4"
+version = "0.2.3"
 description = "Pydantic data models for STAC extensions"
 readme = "README.md"
 requires-python = ">=3.13"

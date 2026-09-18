@@ -5,7 +5,7 @@ from typing import Annotated
 from geojson_pydantic.types import BBox
 from pydantic import AfterValidator
 from stac_pydantic.collection import Range
-from stac_pydantic.shared import NumType
+from stac_pydantic.shared import NumType, validate_bbox
 
 from stac_pydantic_extensions import validators
 
@@ -16,7 +16,7 @@ PercentageValue = Annotated[
 # Mainly for proj
 ProjCodeValue = Annotated[str, AfterValidator(validators.validate_proj_code)]
 ProjWktValue = Annotated[str, AfterValidator(validators.validate_proj_wkt)]
-BboxValue = Annotated[BBox | None, AfterValidator(validators.validate_bbox)]
+BboxValue = Annotated[BBox | None, AfterValidator(validate_bbox)]
 ProjTransformValue = Annotated[
     list[float | int], AfterValidator(validators.validate_proj_transform)
 ]

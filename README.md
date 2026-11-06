@@ -100,7 +100,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 ```bash
 git clone https://github.com/s-boomi/stac-pydantic-extensions.git
 cd stac-pydantic-extensions
-uv sync --group dev
+uv sync --all-groups --all-extras
 ```
 
 Run the test suite:

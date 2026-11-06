@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import NumType
@@ -24,7 +24,7 @@ from stac_pydantic_extensions.types import (
 
 class OldSatelliteExtension(OldBaseExtension):
     prefix: str = "sat"
-    maturity_level: MaturityLevel = MaturityLevel.STABLE
+    maturity_level: MaturityLevel | None = MaturityLevel.STABLE
 
 
 class SatelliteFields_V1_0_0(BaseExtraFields):
@@ -96,16 +96,22 @@ FIELD_MODELS = {
 }
 
 
-class SatelliteExtension(BaseExtension):
+class SatelliteExtension(
+    BaseExtension[
+        SatelliteFields
+        | SatelliteFields_V1_0_0
+        | SatelliteFields_V1_1_0
+        | SatelliteFields_V1_2_0
+    ]
+):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/sat/v1.2.0/schema.json"
     )
-    prefix: ClassVar[Literal["sat"]] = "sat"
-    fields: SatelliteFieldsType
-    version: ClassVar[Literal["v1.2.0"]] = "v1.2.0"
+    prefix: ClassVar[str] = "sat"
+    version: ClassVar[str] = "v1.2.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
-    maturity_level: ClassVar[MaturityLevel] = MaturityLevel.STABLE
-    old_stac_extensions: ClassVar[list[OldSatelliteExtension]] = [
+    maturity_level: ClassVar[MaturityLevel | None] = MaturityLevel.STABLE
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = [
         OldSatelliteExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/sat/v1.0.0/schema.json"
@@ -144,11 +150,11 @@ class SatelliteExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -179,5 +185,5 @@ class SatelliteExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> SatelliteExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=SatelliteFields.model_validate(obj_properties))

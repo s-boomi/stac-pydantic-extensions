@@ -5,9 +5,7 @@ description = "Pydantic data models for STAC extensions"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { file = "LICENSE" }
-authors = [
-  { name = "Shadi Boomi", email = "shadi.boomi@universite-paris-saclay.fr" }
-]
+authors = [{ name = "Shadi Boomi", email = "shadi.boomi@universite-paris-saclay.fr" }]
 keywords = ["geospatial", "gis", "pydantic", "stac", "stac-extensions"]
 classifiers = [
   "Development Status :: 3 - Alpha",

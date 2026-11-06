@@ -1,20 +1,20 @@
 from __future__ import annotations
-from stac_pydantic_extensions import Collection
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
 
+from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.compat.stac_pydantic import Asset, Band, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
     MaturityLevel,
     OldBaseExtension,
-    prefix_alias,
     as_summary_fields,
+    prefix_alias,
 )
 from stac_pydantic_extensions.model_annotations import PercentageValue
 from stac_pydantic_extensions.types import (
@@ -248,7 +248,7 @@ class ElectroOpticalFields(BaseExtraFields):
 
 class OldElectroOpticalExtension(OldBaseExtension):
     prefix: str = "eo"
-    maturity_level: MaturityLevel = MaturityLevel.STABLE
+    maturity_level: MaturityLevel | None = MaturityLevel.STABLE
 
 
 FIELD_MODELS = {
@@ -259,12 +259,16 @@ FIELD_MODELS = {
 }
 
 
-class ElectroOpticalExtension(BaseExtension):
+class ElectroOpticalExtension(
+    BaseExtension[
+        ElectroOpticalFields | ElectroOpticalFields_V1_0_0 | ElectroOpticalFields_V1_1_0
+    ]
+):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/eo/v2.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["eo"]] = "eo"
-    old_stac_extensions: ClassVar[list[OldElectroOpticalExtension]] = [
+    prefix: ClassVar[str] = "eo"
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = [
         OldElectroOpticalExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
@@ -295,8 +299,7 @@ class ElectroOpticalExtension(BaseExtension):
             allowed_objects={"Item", "Asset", "Collection", "Band"},
         ),
     ]
-    fields: ElectroOpticalFieldsType
-    version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
+    version: ClassVar[str] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Collection", "Band"}
 
     @classmethod
@@ -313,11 +316,11 @@ class ElectroOpticalExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -348,7 +351,7 @@ class ElectroOpticalExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> ElectroOpticalExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             if (
                 stac_object.__class__.__name__.lower() == "asset"
                 and "eo:bands" in obj_properties

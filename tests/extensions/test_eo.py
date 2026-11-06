@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import pytest
 from stac_pydantic.extensions import validate_extensions
@@ -10,9 +10,6 @@ from stac_pydantic_extensions.extensions.eo import (
     ElectroOpticalExtension,
 )
 from tests.conftest import read_json
-
-if TYPE_CHECKING:
-    from stac_pydantic_extensions.compat.stac_pydantic import Asset
 
 
 @pytest.fixture
@@ -42,7 +39,7 @@ def test_extension_on_simple_item_and_assets(test_files):
 
     assert analytic_asset.model_extra is not None
     assert len(analytic_asset.model_extra) == 2
-    assert sorted(list(analytic_asset.model_extra.keys())) == sorted(
+    assert sorted(analytic_asset.model_extra.keys()) == sorted(
         ["eo:cloud_cover", "bands"]
     )
 
@@ -269,7 +266,7 @@ def test_manual_band_creation():
         "eo:center_wavelength": 0.85,
         "eo:full_width_half_max": 0.1,
     }
-    band = Band(**band_data)
+    band = Band.model_validate(band_data)
     extended_band = ExtendedItem(stac_object=band)
     assert extended_band.ext.eo.common_name == BandCommonNames.NIR
     assert extended_band.ext.eo.center_wavelength == 0.85

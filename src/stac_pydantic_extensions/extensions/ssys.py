@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 
@@ -9,8 +9,8 @@ from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
-    prefix_alias,
     as_summary_fields,
+    prefix_alias,
 )
 from stac_pydantic_extensions.types import (
     ExtendableStacObject,
@@ -62,13 +62,12 @@ class SolSysFields(BaseExtraFields):
 FIELD_MODELS = {"v1.1.1": SolSysFields}
 
 
-class SolSysExtension(BaseExtension):
+class SolSysExtension(BaseExtension[SolSysFields]):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/ssys/v1.1.1/schema.json"
     )
-    prefix: ClassVar[Literal["ssys"]] = "ssys"
-    fields: SolSysFields
-    version: ClassVar[Literal["v1.1.1"]] = "v1.1.1"
+    prefix: ClassVar[str] = "ssys"
+    version: ClassVar[str] = "v1.1.1"
     allowed_objects: ClassVar[set[str]] = {"Item", "Catalog", "Collection"}
 
     @classmethod
@@ -85,11 +84,11 @@ class SolSysExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -120,12 +119,12 @@ class SolSysExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> SolSysExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=SolSysFields.model_validate(obj_properties))
 
     @classmethod
     def add_extension(
-        cls, stac_object: "ExtendableStacObject", **ext_fields
+        cls, stac_object: ExtendableStacObject, **ext_fields
     ) -> BaseExtension:
         """Returns an instantiated form of the SolSysExtension with the corresponding fields"""
         if isinstance(stac_object, StacObject) and not cls.has_extension(stac_object):

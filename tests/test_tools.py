@@ -71,7 +71,8 @@ def test_simple_latlon_invalid_length_raises(bad_bbox):
 
 def test_simple_latlon_non_numeric_input_raises_type_error():
     with pytest.raises(TypeError):
-        simple_latlon_to_wgs_84(("a", "b", "c", "d"))
+        # Deliberately wrong type: checking the runtime guard
+        simple_latlon_to_wgs_84(("a", "b", "c", "d"))  # ty:ignore[no-matching-overload]
 
 
 def test_simple_latlon_return_type_is_tuple():

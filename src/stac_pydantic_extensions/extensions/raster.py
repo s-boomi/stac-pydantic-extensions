@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import NumType, StacBaseModel
 
-from stac_pydantic_extensions import DataTypes, NoDataTypes, Statistics, Collection
+from stac_pydantic_extensions import Collection, DataTypes, NoDataTypes, Statistics
 from stac_pydantic_extensions.compat.stac_pydantic import Asset, Band, Item
 from stac_pydantic_extensions.extensions._base import (
     BaseExtension,
     BaseExtraFields,
     MaturityLevel,
     OldBaseExtension,
-    prefix_alias,
     as_summary_fields,
+    prefix_alias,
 )
 from stac_pydantic_extensions.types import (
     RasterFieldsType,
@@ -78,7 +78,8 @@ class RasterBand_V1_0_0(StacBaseModel):
 class RasterBand_V1_1_0(RasterBand_V1_0_0):
     """https://github.com/stac-extensions/raster/tree/v1.1.0#raster-band-object"""
 
-    nodata: float | NoDataTypes | None = None
+    # v1.1.0 allows "nan"/"inf"/"-inf", widening the v1.0.0 type
+    nodata: float | NoDataTypes | None = None  # ty:ignore[invalid-attribute-override]
 
     def to_new_band(self) -> Band:
         return Band.model_validate(
@@ -211,7 +212,7 @@ class RasterFields(BaseExtraFields):
 
 class OldRasterExtension(OldBaseExtension):
     prefix: str = "raster"
-    maturity_level: MaturityLevel = MaturityLevel.STABLE
+    maturity_level: MaturityLevel | None = MaturityLevel.STABLE
 
 
 FIELD_MODELS = {
@@ -222,12 +223,14 @@ FIELD_MODELS = {
 }
 
 
-class RasterExtension(BaseExtension):
+class RasterExtension(
+    BaseExtension[RasterFields | RasterFields_V1_0_0 | RasterFields_V1_1_0]
+):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/raster/v2.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["raster"]] = "raster"
-    old_stac_extensions: ClassVar[list[OldRasterExtension]] = [
+    prefix: ClassVar[str] = "raster"
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = [
         OldRasterExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/raster/v1.0.0/schema.json"
@@ -258,8 +261,7 @@ class RasterExtension(BaseExtension):
             allowed_objects={"Item", "Asset", "Collection", "Band"},
         ),
     ]
-    fields: RasterFieldsType
-    version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
+    version: ClassVar[str] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Asset", "Collection", "Band"}
 
     @classmethod
@@ -276,11 +278,11 @@ class RasterExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -311,7 +313,7 @@ class RasterExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> RasterExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             if (
                 stac_object.__class__.__name__.lower() == "asset"
                 and "raster:bands" in obj_properties

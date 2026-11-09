@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from functools import lru_cache
-from typing import ClassVar, Literal
+from functools import cache
+from typing import Any, ClassVar
 
 from geojson_pydantic.geometries import Geometry
 from geojson_pydantic.types import BBox
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import StacBaseModel
-from typing_extensions import Any
 
 from stac_pydantic_extensions import Collection
 from stac_pydantic_extensions.extensions._base import (
@@ -38,7 +37,7 @@ class Centroid(StacBaseModel):
 
 class OldProjectionExtension(OldBaseExtension):
     prefix: str = "proj"
-    maturity_level: MaturityLevel = MaturityLevel.STABLE
+    maturity_level: MaturityLevel | None = MaturityLevel.STABLE
 
 
 class ProjectionFields_V1_0_0(BaseExtraFields):
@@ -66,7 +65,8 @@ class ProjectionFields_V1_0_0(BaseExtraFields):
 class ProjectionFields_V1_1_0(ProjectionFields_V1_0_0):
     """https://github.com/stac-extensions/projection/tree/v1.1.0"""
 
-    epsg: int | None = None
+    # v1.1.0 made `epsg` nullable, widening the v1.0.0 type
+    epsg: int | None = None  # ty:ignore[invalid-attribute-override]
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str | None = None
@@ -115,23 +115,29 @@ FIELD_MODELS = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def as_proj_summary_fields(
     fields_cls: type[ProjectionFields],
 ) -> type[ProjectionFields]:
     return as_summary_fields(fields_cls)
 
 
-class ProjectionExtension(BaseExtension):
+class ProjectionExtension(
+    BaseExtension[
+        ProjectionFields
+        | ProjectionFields_V1_0_0
+        | ProjectionFields_V1_1_0
+        | ProjectionFields_V1_2_0
+    ]
+):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/projection/v2.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["proj"]] = "proj"
-    fields: ProjectionFieldsType
-    version: ClassVar[Literal["v2.0.0"]] = "v2.0.0"
+    prefix: ClassVar[str] = "proj"
+    version: ClassVar[str] = "v2.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection", "Asset", "ItemAsset"}
-    maturity_level: ClassVar[MaturityLevel] = MaturityLevel.STABLE
-    old_stac_extensions: ClassVar[list[OldProjectionExtension]] = [
+    maturity_level: ClassVar[MaturityLevel | None] = MaturityLevel.STABLE
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = [
         OldProjectionExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/projection/v1.0.0/schema.json"
@@ -192,11 +198,11 @@ class ProjectionExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -227,7 +233,7 @@ class ProjectionExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> ProjectionExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=ProjectionFields.model_validate(obj_properties))
 
     @classmethod

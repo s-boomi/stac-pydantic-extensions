@@ -1,6 +1,15 @@
+from typing import overload
+
 from stac_pydantic.shared import BBox
 
+type BBox2D = tuple[float, float, float, float]
+type BBox3D = tuple[float, float, float, float, float, float]
 
+
+@overload
+def simple_latlon_to_wgs_84(bbox: BBox2D) -> BBox2D: ...
+@overload
+def simple_latlon_to_wgs_84(bbox: BBox3D) -> BBox3D: ...
 def simple_latlon_to_wgs_84(bbox: BBox) -> BBox:
     """Translates a bounding box to World Geodetic System 1984 coordinates, the standard for STAC's specs
 

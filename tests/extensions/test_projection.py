@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import ValidationError
@@ -9,9 +8,6 @@ from stac_pydantic_extensions import Asset, Collection, ExtendedItem, Item
 from stac_pydantic_extensions.extensions.eo import ElectroOpticalExtension
 from stac_pydantic_extensions.extensions.proj import ProjectionExtension
 from tests.conftest import read_json
-
-if TYPE_CHECKING:
-    pass
 
 
 @pytest.fixture
@@ -69,6 +65,7 @@ def test_item_assets_reject_summary_style_list(test_files):
     ]
 
     collection = Collection(**test_collection)
+    assert collection.item_assets is not None
     analytic = collection.item_assets["analytic"]
 
     with pytest.raises(ValidationError):

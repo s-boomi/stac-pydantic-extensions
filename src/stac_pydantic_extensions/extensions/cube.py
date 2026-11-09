@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import AnyUrl, ConfigDict, Field
 from stac_pydantic.shared import StacBaseModel
@@ -87,13 +87,12 @@ class DatacubeFields(BaseExtraFields):
 FIELD_MODELS = {"v2.3.0": DatacubeFields}
 
 
-class DatacubeExtension(BaseExtension):
+class DatacubeExtension(BaseExtension[DatacubeFields]):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/datacube/v2.3.0/schema.json"
     )
-    prefix: ClassVar[Literal["cube"]] = "cube"
-    fields: DatacubeFields
-    version: ClassVar[Literal["v2.3.0"]] = "v2.3.0"
+    prefix: ClassVar[str] = "cube"
+    version: ClassVar[str] = "v2.3.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
 
     @classmethod
@@ -110,11 +109,11 @@ class DatacubeExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -145,5 +144,5 @@ class DatacubeExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> DatacubeExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=DatacubeFields.model_validate(obj_properties))

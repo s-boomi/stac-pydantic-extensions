@@ -70,7 +70,7 @@ def test_extension_on_asset_with_nested_bands(planet_item):
     assert data_asset.bands is not None
     assert len(data_asset.bands) == 4
 
-    red_band: "Band" = data_asset.bands[0]
+    red_band: Band = data_asset.bands[0]
     assert red_band.name == "band-1"
 
     extended_band = ExtendedItem(stac_object=red_band)
@@ -105,14 +105,14 @@ def test_extension_directly_on_asset_without_band_nesting(sentinel_item):
     """Sentinel-2 assets carry raster: fields directly, no bands list."""
     item = Item.model_validate(sentinel_item)
 
-    b01: "Asset" = item.assets["B01"]
+    b01: Asset = item.assets["B01"]
     extended_b01 = ExtendedItem(stac_object=b01)
 
     assert isinstance(extended_b01.ext.raster, RasterExtension)
     assert extended_b01.ext.raster.spatial_resolution == 60
     assert extended_b01.ext.raster.bits_per_sample == 15
 
-    b04: "Asset" = item.assets["B04"]
+    b04: Asset = item.assets["B04"]
     extended_b04 = ExtendedItem(stac_object=b04)
 
     assert extended_b04.ext.raster.spatial_resolution == 10
@@ -203,7 +203,7 @@ def test_manual_band_creation():
         "raster:offset": 0,
         "raster:sampling": "area",
     }
-    band = Band(**band_data)
+    band = Band.model_validate(band_data)
     extended_band = ExtendedItem(stac_object=band)
 
     assert isinstance(extended_band.ext.raster, RasterExtension)

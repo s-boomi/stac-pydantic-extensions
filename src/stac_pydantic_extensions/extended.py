@@ -6,7 +6,7 @@ from collections import Counter
 from typing import TYPE_CHECKING, Any, Self, cast
 from warnings import warn
 
-from pydantic import AnyUrl, ConfigDict, model_validator
+from pydantic import AnyUrl, ConfigDict, PrivateAttr, model_validator
 from stac_pydantic.collection import Range
 from stac_pydantic.shared import StacBaseModel
 
@@ -119,13 +119,9 @@ class ExtensionContainer:
                         ) from kerr
                 return
         if isinstance(stac_object, StacSecondaryObject):
-            ext_found = set(
-                [
-                    attr.split(":")[0]
-                    for attr in stac_object.model_dump().keys()
-                    if ":" in attr
-                ]
-            )
+            ext_found = {
+                attr.split(":")[0] for attr in stac_object.model_dump() if ":" in attr
+            }
             for ext_name in ext_found:
                 CurrentExtension = self.fields[ext_name]
                 ext_obj = CurrentExtension.from_stac_secondary_object(stac_object)
@@ -142,12 +138,13 @@ class ExtensionContainer:
         self._instanciated: dict[str, BaseExtension] = {}
         self._instanciate_extensions(stac_object, migrate=migrate)
 
-    def migrate_all(self, stac_object: ExtendableStacObject) -> ExtendableStacObject:
+    def migrate_all[T: ExtendableStacObject](self, stac_object: T) -> T:
         """If one of the extensions is not up to date with what's supported, migrates it to the latest
         version"""
 
-        for ext_name in self._instanciated.keys():
-            stac_object = self._instanciated[ext_name].migrate(stac_object)
+        for ext_name in self._instanciated:
+            # Migrations mutate the object they are given and return that same object
+            stac_object = cast(T, self._instanciated[ext_name].migrate(stac_object))
         return stac_object
 
     @property
@@ -165,8 +162,13 @@ class ExtensionContainer:
     def __dir__(self):
         return sorted(self.fields)
 
-    def __getattr__(self, name: str) -> type[BaseExtension] | BaseExtension:
-        """Returns the class or the instantiated version for the extension"""
+    def __getattr__(self, name: str) -> Any:
+        """Returns the class or the instantiated version for the extension
+
+        Typed as `Any`: whether it's the class or an instance depends on the object
+        at runtime, and the fields depend on the extension. Narrow with `isinstance`
+        against the extension's class to get precise types.
+        """
         if name not in self.field_names:
             raise AttributeError(
                 f"{name!r} is not available for this instance of {self.__class__.__name__}"
@@ -191,28 +193,38 @@ class ExtensionContainer:
         ext_obj = ExtensionToAdd.add_extension(stac_object=stac_object, **ext_fields)
         self._instanciated[ext_name] = ext_obj
 
-    def remove_extension(
-        self, ext_name: str, stac_object: ExtendableStacObject
-    ) -> ExtendableStacObject:
+    def remove_extension[T: ExtendableStacObject](
+        self, ext_name: str, stac_object: T
+    ) -> T:
         if ext_name not in self._instanciated:
             return stac_object
         ext_to_remove = self._instanciated[ext_name]
 
-        # first remove the schema
-        stac_object = ext_to_remove.remove_extension(stac_object)
+        # first remove the schema. The result is re-validated from the same class
+        stac_object = cast(T, ext_to_remove.remove_extension(stac_object))
 
         del self._instanciated[ext_name]
 
         return stac_object
 
 
-class ExtendedItem(StacBaseModel):
-    """Facade structure of a STAC component to deal with extension-related material"""
+class ExtendedItem[StacObjectT: ExtendableStacObject](StacBaseModel):
+    """Facade structure of a STAC component to deal with extension-related material
+
+    Generic over the wrapped object's type, which type checkers infer from the
+    constructor: `ExtendedItem(stac_object=item)` is an `ExtendedItem[Item]`.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    stac_object: ExtendableStacObject
-    ext: ExtensionContainer | None = None
+    stac_object: StacObjectT
+    # Always built by `init_extensions` right after validation
+    _ext: ExtensionContainer = PrivateAttr()
+
+    @property
+    def ext(self) -> ExtensionContainer:
+        """The extensions available for (and declared on) the wrapped STAC object"""
+        return self._ext
 
     def _migrate_recursively(self):
         if isinstance(self.stac_object, Item):
@@ -244,8 +256,7 @@ class ExtendedItem(StacBaseModel):
             and self.stac_object.stac_version != STAC_VERSION
         ):
             self.stac_object.stac_version = STAC_VERSION
-        if self.ext is not None:
-            self.stac_object = self.ext.migrate_all(self.stac_object)
+        self.stac_object = self.ext.migrate_all(self.stac_object)
 
         self._migrate_recursively()
 
@@ -261,12 +272,10 @@ class ExtendedItem(StacBaseModel):
     @model_validator(mode="after")
     def init_extensions(self) -> Self:
         """Instantiates self.ext"""
-        self.ext = ExtensionContainer(self.stac_object)
+        self._ext = ExtensionContainer(self.stac_object)
         return self
 
     def show_ext_names(self) -> set[str]:
-        if self.ext is None:
-            return set()
         return set(self.ext.field_names)
 
     def add_extension(self, ext_name: str, extra_fields: BaseExtraFields | None = None):
@@ -275,12 +284,11 @@ class ExtendedItem(StacBaseModel):
         Extra fields are allowed
 
         """
-        if self.ext is not None:
-            self.ext.add_extension(
-                ext_name,
-                self.stac_object,
-                **extra_fields.to_dict() if extra_fields is not None else {},
-            )
+        self.ext.add_extension(
+            ext_name,
+            self.stac_object,
+            **extra_fields.to_dict() if extra_fields is not None else {},
+        )
 
     def remove_extension(self, ext_name: str) -> ExtendableStacObject:
         """Removes `ext_name` extension from the STAC object.
@@ -310,14 +318,14 @@ class ExtendedItem(StacBaseModel):
                 # ...And for asset
                 for asset_name, asset in new_stac_obj.assets.items():
                     if "bands" in asset._additional_fields:
-                        new_stac_obj.assets[asset_name].bands = [  # ty: ignore[unresolved-attribute]
+                        new_stac_obj.assets[asset_name].bands = [
                             cast(
                                 Band,
                                 ExtendedItem(stac_object=band).remove_extension(
                                     ext_name
                                 ),
                             )
-                            for band in asset.bands  # ty: ignore[unresolved-attribute]
+                            for band in asset.bands
                         ]
 
             self.stac_object = new_stac_obj
@@ -360,9 +368,6 @@ class ExtendedItem(StacBaseModel):
         )
 
     def _apply_changes(self):
-        if self.ext is None:
-            return
-
         obj_as_dict = self.stac_object.model_dump()
 
         for ext_name in self.ext.declared:
@@ -377,7 +382,7 @@ class ExtendedItem(StacBaseModel):
                     mode="json", exclude_none=True
                 )
                 for key, value in ext_dump.items():
-                    if isinstance(value, dict) or isinstance(value, list):
+                    if isinstance(value, (dict, list)):
                         obj_as_dict["summaries"][key] = value
                     else:
                         obj_as_dict["summaries"][key] = Range(

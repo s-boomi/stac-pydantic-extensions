@@ -245,7 +245,7 @@ class Ellipsoid(StrictBaseModelByName):
     ids: list[Id] | None = None
 
     @model_validator(mode="after")
-    def check_shape(self) -> "Ellipsoid":
+    def check_shape(self) -> Ellipsoid:
         if self.radius is not None:
             # Sphere — semi_major_axis should not be set
             return self

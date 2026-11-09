@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pydantic import AnyUrl, ConfigDict
 from stac_pydantic.shared import StacBaseModel
@@ -20,9 +20,6 @@ from stac_pydantic_extensions.types import (
     StacObject,
     StacSecondaryObject,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class Expression(StacBaseModel):
@@ -97,7 +94,7 @@ class ProcessingFields(ProcessingFields_V1_2_0):
 
 class OldProcessingExtension(OldBaseExtension):
     prefix: str = "processing"
-    maturity_level: MaturityLevel = MaturityLevel.PROPOSAL
+    maturity_level: MaturityLevel | None = MaturityLevel.PROPOSAL
 
 
 FIELD_MODELS = {
@@ -107,16 +104,22 @@ FIELD_MODELS = {
 }
 
 
-class ProcessingExtension(BaseExtension):
+class ProcessingExtension(
+    BaseExtension[
+        ProcessingFields
+        | ProcessingFields_V1_0_0
+        | ProcessingFields_V1_1_0
+        | ProcessingFields_V1_2_0
+    ]
+):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/processing/v1.2.0/schema.json"
     )
-    prefix: ClassVar[Literal["processing"]] = "processing"
-    fields: ProcessingFieldsType
-    version: ClassVar[Literal["v1.2.0"]] = "v1.2.0"
+    prefix: ClassVar[str] = "processing"
+    version: ClassVar[str] = "v1.2.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
-    maturity_level: ClassVar[MaturityLevel] = MaturityLevel.CANDIDATE
-    old_stac_extensions: ClassVar[list[OldProcessingExtension]] = [
+    maturity_level: ClassVar[MaturityLevel | None] = MaturityLevel.CANDIDATE
+    old_stac_extensions: ClassVar[list[OldBaseExtension]] = [
         OldProcessingExtension(
             stac_extension=AnyUrl(
                 "https://stac-extensions.github.io/processing/v1.0.0/schema.json"
@@ -153,11 +156,11 @@ class ProcessingExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -188,5 +191,5 @@ class ProcessingExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> ProcessingExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=ProcessingFields.model_validate(obj_properties))

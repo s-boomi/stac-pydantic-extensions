@@ -91,38 +91,32 @@ def validate_proj_transform(v: list[int | float] | None) -> list[int | float] | 
 
 
 def validate_doi(v: str | None) -> str | None:
-    if v is not None:
-        if DOI_PATTERN.fullmatch(v) is None:
-            raise ValidationError(f"{v} is not a valid DOI")
+    if v is not None and DOI_PATTERN.fullmatch(v) is None:
+        raise ValidationError(f"{v} is not a valid DOI")
     return v
 
 
-def validate_off_nadir(v: float | int | None) -> float | int | None:
-    if v is not None:
-        if v < 0 or v > 90:
-            raise ValidationError(
-                "Off Nadir, incidence and moon "
-                f"elevation angles must be between 0 and 90° (value={v})"
-            )
-
-    return v
-
-
-def validate_azimuth(v: float | int | None) -> float | int | None:
-    if v is not None:
-        if v < 0 or v > 360:
-            raise ValidationError(
-                f"Azimuth angles must be between 0 and 360° (value={v})"
-            )
+def validate_off_nadir(v: float | None) -> float | int | None:
+    if v is not None and (v < 0 or v > 90):
+        raise ValidationError(
+            "Off Nadir, incidence and moon "
+            f"elevation angles must be between 0 and 90° (value={v})"
+        )
 
     return v
 
 
-def validate_elevation(v: float | int | None) -> float | int | None:
-    if v is not None:
-        if v < -90 or v > 90:
-            raise ValidationError(
-                f"Sun elevation angle must be between -90 and 90° (value={v})"
-            )
+def validate_azimuth(v: float | None) -> float | int | None:
+    if v is not None and (v < 0 or v > 360):
+        raise ValidationError(f"Azimuth angles must be between 0 and 360° (value={v})")
+
+    return v
+
+
+def validate_elevation(v: float | None) -> float | int | None:
+    if v is not None and (v < -90 or v > 90):
+        raise ValidationError(
+            f"Sun elevation angle must be between -90 and 90° (value={v})"
+        )
 
     return v

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from functools import lru_cache
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from functools import cache
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from pydantic import AnyUrl, ConfigDict, computed_field, create_model
 from stac_pydantic.collection import Range
@@ -43,7 +43,6 @@ class BaseExtraFields(StacBaseModel):
         cls, stac_object: ExtendableStacObject, ext_vers: str
     ) -> OldBaseExtraFields | None:
         """Only called if the user doesn't wish to migrate"""
-        pass
 
     def migrate(
         self, stac_object: ExtendableStacObject, version: str
@@ -62,16 +61,14 @@ class BaseExtraFields(StacBaseModel):
         return self
 
 
-BaseExtraFieldsT = TypeVar("BaseExtraFieldsT", bound=BaseExtraFields)
-
-
-@lru_cache(maxsize=None)
-def as_summary_fields(fields_cls: type[BaseExtraFieldsT]) -> type[BaseExtraFieldsT]:
+@cache
+def as_summary_fields[T: BaseExtraFields](fields_cls: type[T]) -> type[T]:
     """Build a variant of `fields_cls` where every field also accepts the
     Collection-summary forms: a Range, or a list of allowed values."""
     overrides: dict[str, tuple[Any, Any]] = {}
     for name, field in fields_cls.model_fields.items():
-        annotation = field.annotation
+        # Annotations are built dynamically here, which static checkers can't model
+        annotation: Any = field.annotation
         if annotation is None:
             # No concrete type captured for this field — leave it as-is,
             # nothing to broaden.
@@ -113,15 +110,26 @@ class OldBaseExtension(_BaseExtension):
 FIELD_MODELS = {"old": OldBaseExtraFields}
 
 
-class BaseExtension(_BaseClassExtension):
-    """Base model for extensions"""
+class BaseExtension[FieldsT: BaseExtraFields](_BaseClassExtension):
+    """Base model for extensions
+
+    Generic over the type of extra fields it holds, so that each extension can
+    state its own fields type (`class FooExtension(BaseExtension[FooFields])`)
+    without overriding a mutable attribute.
+    """
 
     # List of previous STAC extensions
     # Can be left empty some extensions are at their first version
     old_stac_extensions: ClassVar[list[OldBaseExtension]] = []
 
-    fields: BaseExtraFieldsType
+    fields: FieldsT
     _loaded_version: str | None = None
+
+    def __init__(self, *, _loaded_version: str | None = None, **data: Any) -> None:
+        # Pydantic never accepts private attributes as init arguments, so they
+        # have to be forwarded by hand.
+        super().__init__(**data)
+        self._loaded_version = _loaded_version
 
     @classmethod
     def schema_uris(cls) -> list[AnyUrl]:
@@ -215,8 +223,7 @@ class BaseExtension(_BaseClassExtension):
 
         elif isinstance(stac_object, StacSecondaryObject):
             return any(
-                field.startswith(cls.prefix)
-                for field in stac_object.model_fields.keys()
+                field.startswith(cls.prefix) for field in stac_object.model_fields
             )
 
         return False
@@ -238,7 +245,7 @@ class BaseExtension(_BaseClassExtension):
         cls,
         stac_object: StacObject,
         migrate: bool = False,
-    ) -> "BaseExtension | None":
+    ) -> BaseExtension | None:
         """Creates an instance of the extension from a STAC item
 
         Args:
@@ -302,7 +309,7 @@ class BaseExtension(_BaseClassExtension):
             return None
 
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=BaseExtraFields.model_validate(obj_properties))
 
     def migrate(
@@ -340,14 +347,22 @@ class BaseExtension(_BaseClassExtension):
 
             stac_object.stac_extensions.append(self.stac_extension)
 
-        self.fields = self.fields.migrate(
-            stac_object=stac_object,
-            version=_version,
+        # `migrate` is declared as returning any BaseExtraFields, but each extension
+        # only ever migrates towards one of its own fields types.
+        self.fields = cast(
+            FieldsT,
+            self.fields.migrate(stac_object=stac_object, version=_version),
         )
 
         return stac_object
 
     def __getattr__(self, name: str):
+        # Private attributes (e.g. `_loaded_version`) are served by pydantic's
+        # own `__getattr__`, which this method would otherwise shadow. Pydantic
+        # hides that method from type checkers, hence the ignore.
+        if name.startswith("_"):
+            return super().__getattr__(name)  # ty:ignore[unresolved-attribute]
+
         allowed_fields = list(self.fields.__dict__.keys())
         if name not in allowed_fields:
             raise AttributeError(

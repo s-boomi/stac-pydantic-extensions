@@ -50,13 +50,13 @@ item = Item.model_validate(raw_item)
 extended_item = ExtendedItem(stac_object=item)
 
 # Read extension fields declared on the item
-print(extended_item.ext.eo.cloud_cover)          # 21.22
-print(extended_item.show_ext_names())            # {'eo', 'view', 'proj', 'raster'}
+print(extended_item.ext.eo.cloud_cover)  # 21.22
+print(extended_item.show_ext_names())  # {'eo', 'view', 'proj', 'raster'}
 
 # Extensions declared on assets/bands are available the same way
 red_band = extended_item.stac_object.assets["B04"]
 extended_band = ExtendedItem(stac_object=red_band)
-print(extended_band.ext.eo.common_name)           # "red"
+print(extended_band.ext.eo.common_name)  # "red"
 print(extended_band.ext.raster.spatial_resolution)  # 10
 
 # Add a new extension to an item that doesn't have it yet
@@ -100,7 +100,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 ```bash
 git clone https://github.com/s-boomi/stac-pydantic-extensions.git
 cd stac-pydantic-extensions
-uv sync --group dev
+uv sync --all-groups --all-extras
 ```
 
 Run the test suite:

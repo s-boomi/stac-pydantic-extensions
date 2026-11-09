@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import AnyUrl, ConfigDict, Field
 
@@ -52,13 +52,12 @@ class RemoteDataFields(BaseExtraFields):
 FIELD_MODELS = {"v1.0.0": RemoteDataFields}
 
 
-class RemoteDataExtension(BaseExtension):
+class RemoteDataExtension(BaseExtension[RemoteDataFields]):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/remote-data/v1.0.0/schema.json"
     )
-    prefix: ClassVar[Literal["rd"]] = "rd"
-    fields: RemoteDataFields
-    version: ClassVar[Literal["v1.0.0"]] = "v1.0.0"
+    prefix: ClassVar[str] = "rd"
+    version: ClassVar[str] = "v1.0.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Collection"}
 
     @classmethod
@@ -75,11 +74,11 @@ class RemoteDataExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -110,5 +109,5 @@ class RemoteDataExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> RemoteDataExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=RemoteDataFields.model_validate(obj_properties))

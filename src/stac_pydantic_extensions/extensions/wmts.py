@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pydantic import AnyUrl, ConfigDict, Field
 
@@ -136,15 +136,14 @@ class WebMapLinksFields(BaseExtraFields):
 FIELD_MODELS = {"v1.3.0": WebMapLinksFields}
 
 
-class WebMapLinksExtension(BaseExtension):
+class WebMapLinksExtension(BaseExtension[WebMapLinksFields]):
     stac_extension: ClassVar[AnyUrl] = AnyUrl(
         "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
     )
-    prefix: ClassVar[Literal["wmts"]] = "wmts"
-    fields: WebMapLinksFields
-    version: ClassVar[Literal["v1.3.0"]] = "v1.3.0"
+    prefix: ClassVar[str] = "wmts"
+    version: ClassVar[str] = "v1.3.0"
     allowed_objects: ClassVar[set[str]] = {"Item", "Catalog", "Collection"}
-    maturity_level: ClassVar[MaturityLevel] = MaturityLevel.PROPOSAL
+    maturity_level: ClassVar[MaturityLevel | None] = MaturityLevel.PROPOSAL
 
     @classmethod
     def from_stac_object(
@@ -160,11 +159,11 @@ class WebMapLinksExtension(BaseExtension):
         stac_ext_version = (
             cls.version
             if cls.stac_extension in stac_extensions
-            else [
+            else next(
                 stac_ext_info.version
                 for stac_ext_info in cls.old_stac_extensions
                 if stac_ext_info.stac_extension in stac_extensions
-            ][0]
+            )
         )
 
         model = FIELD_MODELS[stac_ext_version]
@@ -195,5 +194,5 @@ class WebMapLinksExtension(BaseExtension):
         cls, stac_object: StacSecondaryObject
     ) -> WebMapLinksExtension | None:
         obj_properties = stac_object.to_dict()
-        if any(field.startswith(cls.prefix + ":") for field in obj_properties.keys()):
+        if any(field.startswith(cls.prefix + ":") for field in obj_properties):
             return cls(fields=WebMapLinksFields.model_validate(obj_properties))

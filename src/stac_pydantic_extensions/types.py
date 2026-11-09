@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from stac_pydantic import Catalog
 from stac_pydantic.shared import NumType
@@ -54,21 +54,9 @@ if TYPE_CHECKING:
     )
 
 
-# TODO: ruff (UP040) wants these three as `type X = ...` statements, but the
-# source code calls `isinstance(obj, StacObject)` / `isinstance(obj, StacSecondaryObject)`
-# in ~19 places, and a `type` alias (TypeAliasType) can't be used with isinstance.
-# To drop the noqa, replace those calls with `isinstance(obj, get_args(...))` or
-# expose runtime tuples (e.g. `STAC_OBJECT_TYPES = (Catalog, Collection, Item)`),
-# then convert the aliases.
-
-# Main STAC objects: possess a "stac_extensions" attribute that contains
-# links to JSON schemas (optional if the extension is still in dev)
-StacObject: TypeAlias = Catalog | Collection | Item  # noqa: UP040
-# Sub-objects that are usually part of a StacObject, but can receive extensions
-# We must make sure their parent has the extension
-StacSecondaryObject: TypeAlias = Asset | Band | Link | ItemAsset  # noqa: UP040
-# Possible scopes of the extension
-ExtendableStacObject: TypeAlias = StacObject | StacSecondaryObject  # noqa: UP040
+StacObject = Catalog | Collection | Item
+StacSecondaryObject = Asset | Band | Link | ItemAsset
+ExtendableStacObject = StacObject | StacSecondaryObject
 
 
 # For some fields

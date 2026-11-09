@@ -260,8 +260,6 @@ class ExtendedItem[StacObjectT: ExtendableStacObject](StacBaseModel):
 
         self._migrate_recursively()
 
-        # TODO: re-sort bands
-
         return self
 
     def get_ext_schema_uri(self) -> list[AnyUrl] | None:
